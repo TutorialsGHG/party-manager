@@ -3,7 +3,7 @@
 	import { t } from '$lib/i18n';
 	import Card from '$lib/ui/components/Card.svelte';
 	import Button from '$lib/ui/components/Button.svelte';
-	import { Calendar, ShieldCheck, Smartphone } from '@lucide/svelte';
+	import { ShieldCheck } from '@lucide/svelte';
 </script>
 
 <div class="landing-container">
@@ -17,15 +17,10 @@
 	</header>
 
 	<div class="card-grid">
-		<Card title="Apple-inspiriert" subtitle="Ruhiges, klares Design ohne unnötige Ablenkung.">
+		<Card title="Deine Daten bleiben privat" subtitle="Nur du und deine Gäste haben Zugriff.">
 			<p class="card-text">
-				Gäste öffnen den Einladungslink sofort ohne Login. Native Gesten, Dark Mode und responsive Darstellung von 320px bis 4K.
-			</p>
-		</Card>
-
-		<Card title="Envelope-Verschlüsselung" subtitle="Echte Löschgarantie durch Crypto-Shredding.">
-			<p class="card-text">
-				Alle privaten Event-Details, Gästekommentare und Medien bleiben at-rest verschlüsselt (RSA-4096 + AES-256-GCM Chunks).
+				Alle Inhalte werden verschlüsselt gespeichert. Wenn du ein Event löschst,
+				werden auch die Schlüssel gelöscht – danach kann niemand mehr etwas lesen, auch nicht der Server.
 			</p>
 		</Card>
 	</div>
