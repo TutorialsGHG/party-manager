@@ -1,0 +1,7 @@
+packages:
+  - '.'
+ignoredBuiltDependencies:
+  - better-sqlite3
+onlyBuiltDependencies:
+  - argon2
+  - sharp

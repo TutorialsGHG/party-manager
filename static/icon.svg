@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1C1C1E" />
+      <stop offset="100%" stop-color="#000000" />
+    </linearGradient>
+    <linearGradient id="envelope" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E5E5EA" />
+    </linearGradient>
+    <linearGradient id="seal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF" />
+      <stop offset="100%" stop-color="#5856D6" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- App Icon Background (Apple Squircle / Rounded Rect) -->
+  <rect width="512" height="512" rx="115" fill="url(#bg)" />
+
+  <!-- Stylized Elegant Envelope -->
+  <g filter="url(#shadow)">
+    <!-- Envelope Body -->
+    <rect x="96" y="160" width="320" height="210" rx="24" fill="url(#envelope)" />
+    
+    <!-- Envelope Flap Lines -->
+    <path d="M 106 168 L 256 275 L 406 168" fill="none" stroke="#D1D1D6" stroke-width="4" stroke-linejoin="round" />
+    <path d="M 106 360 L 210 270" fill="none" stroke="#E5E5EA" stroke-width="3" stroke-linecap="round" />
+    <path d="M 406 360 L 302 270" fill="none" stroke="#E5E5EA" stroke-width="3" stroke-linecap="round" />
+  </g>
+
+  <!-- Center Accent Seal -->
+  <circle cx="256" cy="275" r="32" fill="url(#seal)" />
+  <circle cx="256" cy="275" r="28" fill="none" stroke="#FFFFFF" stroke-opacity="0.4" stroke-width="2" />
+  <!-- Minimalist Star / Sparkle in Seal -->
+  <path d="M 256 261 L 260 271 L 270 275 L 260 279 L 256 289 L 252 279 L 242 275 L 252 271 Z" fill="#FFFFFF" />
+</svg>

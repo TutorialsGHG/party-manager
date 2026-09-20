@@ -1,0 +1,89 @@
+{
+  "app": {
+    "name": "Einladung",
+    "tagline": "Private invitations for parties and birthdays",
+    "loading": "Loading...",
+    "error": "An unexpected error occurred.",
+    "notFound": "Page or invitation not found.",
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "share": "Share"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Create account",
+    "email": "Email address",
+    "password": "Password",
+    "recoveryCodes": "Recovery codes",
+    "recoveryCodeNotice": "Save these 10 one-time codes in a secure place. They are shown only once.",
+    "passkey": "Sign in with Passkey",
+    "totp": "Two-factor authentication code",
+    "logout": "Log out",
+    "powSolving": "Performing security check..."
+  },
+  "events": {
+    "create": "Create new event",
+    "title": "Event title",
+    "description": "Description",
+    "dateTime": "Date & Time",
+    "location": "Location",
+    "openAppleMaps": "Open in Apple Maps",
+    "openOsm": "Open in OpenStreetMap",
+    "openGoogleMaps": "Open in Google Maps",
+    "addToCalendar": "Add to Calendar",
+    "qrCode": "Show QR Code",
+    "shareInvite": "Share invitation",
+    "countdownDays": "Days",
+    "countdownHours": "Hrs",
+    "countdownMinutes": "Mins",
+    "countdownSeconds": "Secs"
+  },
+  "rsvp": {
+    "title": "Your RSVP",
+    "yes": "I am attending",
+    "maybe": "Maybe",
+    "no": "Cannot attend",
+    "companions": "Accompanying guests",
+    "companionNames": "Names of companions",
+    "notes": "Notes or dietary needs",
+    "submit": "Save RSVP",
+    "attendingSummary": "people attending"
+  },
+  "polls": {
+    "title": "Polls",
+    "vote": "Vote",
+    "changeVote": "Change vote",
+    "anonymous": "Anonymous poll",
+    "closed": "Poll closed",
+    "addOption": "Add option"
+  },
+  "wall": {
+    "title": "Message Wall",
+    "placeholder": "Leave a message on the wall...",
+    "send": "Post",
+    "pinned": "Pinned",
+    "empty": "No messages yet. Be the first to post!"
+  },
+  "gallery": {
+    "title": "Photos & Videos",
+    "upload": "Upload photos/videos",
+    "dropzone": "Drop photos & videos here or tap to select",
+    "processing": "Processing...",
+    "downloadOriginal": "Download original",
+    "empty": "No photos or videos uploaded yet."
+  },
+  "admin": {
+    "title": "Administration",
+    "users": "Users",
+    "systemStatus": "System status",
+    "limits": "Storage limits",
+    "smtp": "Mail settings",
+    "testEmail": "Send test email"
+  }
+}
