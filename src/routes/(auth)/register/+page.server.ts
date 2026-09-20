@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { countUsers, createUser, findUserByEmail } from '$lib/server/db/repositories/user.repository';
+import { SettingsRepository } from '$lib/server/db/repositories/settings.repository';
 import { hashPassword } from '$lib/server/auth/password';
 import { generateRecoveryCodes } from '$lib/server/auth/recovery';
 import { createPoWChallenge, verifyPoWSolution } from '$lib/server/auth/pow';
@@ -13,11 +14,15 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   const isFirstUser = countUsers() === 0;
+  const settings = SettingsRepository.getAllSettings();
+  const registrationEnabled = isFirstUser || settings.registrationEnabled;
+
   // Create PoW challenge with difficulty 3 for quick browser solve
   const pow = createPoWChallenge(3);
 
   return {
     isFirstUser,
+    registrationEnabled,
     pow
   };
 };
@@ -36,6 +41,15 @@ export const actions: Actions = {
     }
 
     const { email, password, challenge, nonce, difficulty, expiresAt, signature } = parseResult.data;
+
+    const isFirstUser = countUsers() === 0;
+    const settings = SettingsRepository.getAllSettings();
+    if (!isFirstUser && !settings.registrationEnabled) {
+      return fail(403, {
+        error: 'Die Registrierung neuer Benutzer ist derzeit durch den Administrator deaktiviert.',
+        values: { email }
+      });
+    }
 
     // 1. Verify Proof-of-Work solution
     const isPoWValid = verifyPoWSolution(challenge, nonce, difficulty, expiresAt, signature);

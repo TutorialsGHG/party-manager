@@ -148,3 +148,52 @@ export function replaceRecoveryCodes(userId: string, newCodeHashes: string[]) {
   });
   tx();
 }
+
+export function listUsers(): (UserRecord & { eventCount: number })[] {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT u.id, u.email_cipher, u.role, u.is_active, u.created_at,
+           COUNT(e.id) as event_count
+    FROM users u
+    LEFT JOIN events e ON u.id = e.host_id
+    GROUP BY u.id
+    ORDER BY u.created_at ASC
+  `).all() as any[];
+
+  return rows.map((row) => {
+    let email = '';
+    try {
+      const buf = decryptWithMasterKey(Buffer.from(row.email_cipher, 'base64'));
+      email = buf.toString('utf8');
+    } catch {
+      email = 'encrypted-user';
+    }
+
+    return {
+      id: row.id,
+      email,
+      role: row.role,
+      isActive: !!row.is_active,
+      createdAt: row.created_at,
+      eventCount: row.event_count || 0
+    };
+  });
+}
+
+export function setUserActive(id: string, isActive: boolean): boolean {
+  const db = getDb();
+  const res = db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(isActive ? 1 : 0, id);
+  return res.changes > 0;
+}
+
+export function setUserRole(id: string, role: 'admin' | 'host'): boolean {
+  const db = getDb();
+  const res = db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+  return res.changes > 0;
+}
+
+export function deleteUser(id: string): boolean {
+  const db = getDb();
+  const res = db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  return res.changes > 0;
+}
