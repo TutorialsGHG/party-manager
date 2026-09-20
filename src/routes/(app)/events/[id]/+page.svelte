@@ -18,8 +18,11 @@
     RefreshCw,
     Trash2,
     Users,
-    Download
+    Download,
+    Camera
   } from '@lucide/svelte';
+  import GalleryGrid from '$lib/features/gallery/GalleryGrid.svelte';
+  import type { MediaItem } from '$lib/features/gallery/types';
 
   let { data, form } = $props();
 
@@ -56,6 +59,22 @@
       }
     } else {
       copyLink();
+    }
+  }
+
+  let mediaItems = $state<MediaItem[]>([]);
+  $effect(() => {
+    mediaItems = data.mediaItems || [];
+  });
+
+  async function handleDeleteMedia(item: MediaItem) {
+    const res = await fetch(`/api/media/${item.id}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      mediaItems = mediaItems.filter((m) => m.id !== item.id);
+    } else {
+      alert('Löschen fehlgeschlagen.');
     }
   }
 
@@ -169,6 +188,19 @@
         {/each}
       </div>
     {/if}
+  </Card>
+
+  <!-- Media Gallery Card -->
+  <Card title="Fotos & Videos ({mediaItems.length})" subtitle="Alle geteilten Erinnerungen dieses Events">
+    <GalleryGrid
+      bind:items={mediaItems}
+      eventId={data.event.id}
+      canDelete={() => true}
+      onDelete={handleDeleteMedia}
+      onUploadComplete={() => {
+        // Uploaded as host
+      }}
+    />
   </Card>
 
   <!-- Danger Zone & Management -->

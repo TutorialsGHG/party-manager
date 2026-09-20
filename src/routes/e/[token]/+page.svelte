@@ -26,12 +26,15 @@
     Send,
     Plus,
     Radio,
-    CheckSquare
+    CheckSquare,
+    Camera
   } from '@lucide/svelte';
+  import GalleryGrid from '$lib/features/gallery/GalleryGrid.svelte';
+  import type { MediaItem } from '$lib/features/gallery/types';
 
   let { data, form } = $props();
 
-  let activeTab = $state<'info' | 'wall' | 'polls'>('info');
+  let activeTab = $state<'info' | 'wall' | 'polls' | 'gallery'>('info');
 
   let guestName = $state('');
   let showNameSheet = $state(false);
@@ -52,6 +55,9 @@
   let polls = $state<any[]>([]);
   let newOptionText = $state<Record<string, string>>({});
 
+  // Gallery state
+  let mediaList = $state<MediaItem[]>([]);
+
   $effect(() => {
     if (data.currentGuest) {
       guestName = data.currentGuest.name;
@@ -69,7 +75,22 @@
 
     posts = data.wallPosts || [];
     polls = data.polls || [];
+    mediaList = data.mediaItems || [];
   });
+
+  async function handleDeleteMedia(item: MediaItem) {
+    const res = await fetch(`/api/media/${item.id}`, {
+      method: 'DELETE',
+      headers: {
+        'X-Guest-Token': data.deviceToken || ''
+      }
+    });
+    if (res.ok) {
+      mediaList = mediaList.filter((m) => m.id !== item.id);
+    } else {
+      alert('Löschen fehlgeschlagen.');
+    }
+  }
 
   // Connect to SSE stream for live updates
   onMount(() => {
@@ -90,6 +111,18 @@
     eventSource.addEventListener('poll:vote', () => {
       // Reload page state silently on poll vote or rsvp
       window.location.reload();
+    });
+
+    eventSource.addEventListener('media:new', (e) => {
+      const newMedia = JSON.parse(e.data);
+      if (!mediaList.some((m) => m.id === newMedia.id)) {
+        mediaList = [newMedia, ...mediaList];
+      }
+    });
+
+    eventSource.addEventListener('media:delete', (e) => {
+      const { mediaId } = JSON.parse(e.data);
+      mediaList = mediaList.filter((m) => m.id !== mediaId);
     });
 
     return () => {
@@ -168,6 +201,18 @@
       <span>Umfragen</span>
       {#if polls.length > 0}
         <span class="tab-badge">{polls.length}</span>
+      {/if}
+    </button>
+
+    <button
+      type="button"
+      class="tab-btn {activeTab === 'gallery' ? 'active' : ''}"
+      onclick={() => (activeTab = 'gallery')}
+    >
+      <Camera size={16} />
+      <span>Galerie</span>
+      {#if mediaList.length > 0}
+        <span class="tab-badge">{mediaList.length}</span>
       {/if}
     </button>
   </nav>
@@ -495,6 +540,19 @@
           {/each}
         {/if}
       </div>
+    {:else if activeTab === 'gallery'}
+      <Card title="Fotos & Videos" subtitle="Lade deine Aufnahmen hoch oder stöbere durch die Galerie.">
+        <GalleryGrid
+          bind:items={mediaList}
+          eventId={data.event.id}
+          guestToken={data.deviceToken}
+          canDelete={(item) => !!(data.currentGuest?.isHost || data.currentGuest?.id === item.uploaderGuestId)}
+          onDelete={handleDeleteMedia}
+          onUploadComplete={() => {
+            // New items arrive automatically via SSE
+          }}
+        />
+      </Card>
     {/if}
   </main>
 </div>

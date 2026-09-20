@@ -23,6 +23,7 @@ import {
 } from '$lib/server/db/repositories/poll.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { rsvpSchema, wallPostSchema } from '$lib/shared/schemas';
+import { MediaRepository } from '$lib/server/db/repositories/media.repository';
 
 const GUEST_COOKIE_PREFIX = 'dev_tok_';
 
@@ -42,7 +43,7 @@ export const load: PageServerLoad = async ({ params, cookies, setHeaders }) => {
   if (!deviceToken) {
     deviceToken = crypto.randomBytes(24).toString('base64url');
     cookies.set(cookieName, deviceToken, {
-      path: `/e/${params.token}`,
+      path: '/',
       httpOnly: true,
       sameSite: 'lax',
       maxAge: 365 * 24 * 60 * 60
@@ -54,14 +55,17 @@ export const load: PageServerLoad = async ({ params, cookies, setHeaders }) => {
   const summary = getRsvpSummary(event.id);
   const wallPosts = listWallPosts(event.id);
   const polls = listPollsForEvent(event.id, currentGuest?.id);
+  const mediaItems = MediaRepository.listByEvent(event.id).filter((m) => m.status === 'ready');
 
   return {
     event,
     currentGuest,
+    deviceToken,
     rsvp,
     summary,
     wallPosts,
-    polls
+    polls,
+    mediaItems
   };
 };
 
@@ -75,7 +79,7 @@ export const actions: Actions = {
     if (!deviceToken) {
       deviceToken = crypto.randomBytes(24).toString('base64url');
       cookies.set(cookieName, deviceToken, {
-        path: `/e/${params.token}`,
+        path: '/',
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 365 * 24 * 60 * 60

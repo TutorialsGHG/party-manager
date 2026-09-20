@@ -6,6 +6,7 @@ import {
   deleteEvent
 } from '$lib/server/db/repositories/event.repository';
 import { getRsvpSummary } from '$lib/server/db/repositories/rsvp.repository';
+import { MediaRepository } from '$lib/server/db/repositories/media.repository';
 import { generateQrSvg } from '$lib/features/events/qr';
 import { config } from '$lib/server/config/env';
 
@@ -16,11 +17,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   }
 
   const rsvp = getRsvpSummary(event.id);
+  const mediaItems = MediaRepository.listByEvent(event.id);
   const baseUrl = config.baseUrl;
 
   return {
     event,
     rsvp,
+    mediaItems,
     baseUrl
   };
 };
