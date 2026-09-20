@@ -6,12 +6,15 @@ import { generateRecoveryCodes } from '../../../src/lib/server/auth/recovery.js'
 import { SettingsRepository, DEFAULT_SETTINGS } from '../../../src/lib/server/db/repositories/settings.repository.js';
 import { sendTestMail } from '../../../src/lib/server/mail/smtp.js';
 
+import { getDb } from '../../../src/lib/server/db/client.js';
+
 describe('Admin, Settings & User Management Modules', () => {
   let adminId = '';
   let testHostId = '';
 
   beforeAll(async () => {
     runMigrations();
+    getDb().prepare('DELETE FROM system_settings').run();
 
     const pwdHash = await hashPassword('AdminPass123!');
     const codes = generateRecoveryCodes(10).map((c) => c.codeHash);

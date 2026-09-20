@@ -1,42 +1,120 @@
-# sv
+# Einladung 🎈
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+> **Selbst gehostete, kompromisslos private Einladungs-App (PWA) für Partys und Geburtstage.**
 
-## Creating a project
+Einladung ist eine moderne Web-App, mit der Hosts stilvolle Einladungen erstellen und verwalten. Gäste öffnen einfach einen geheimen Link im Browser – **ohne Registrierung oder App-Installation** –, sehen alle Details, sagen zu oder ab, stimmen in Umfragen ab, schreiben auf die Pinnwand und laden Fotos & Videos in Originalqualität hoch.
 
-If you're seeing this, you've probably already done this step. Congrats!
+---
 
-```sh
-# create a new project
-npx sv create my-app
+## Highlights
+
+- 🔒 **100 % Privatsphäre:** Keine externen CDNs, keine Google Fonts, keine Tracker, keine externen Tiles. Alles wird lokal aus einem einzigen Container ausgeliefert.
+- 🛡️ **Envelope Encryption & Crypto-Shredding:**
+  - RSA-4096 Master-Schlüssel + 256-Bit Event-Schlüssel.
+  - Chunked AES-256-GCM Streaming-Verschlüsselung (1 MiB Chunks) für alle Medien.
+  - Sensible Datenbankspalten mit AAD verschlüsselt.
+  - Beim Löschen eines Events wird der Event-Schlüssel sofort physisch vernichtet – alle Daten werden mathematisch unlesbar.
+- ⚡ **Echtzeit mit SSE:** Pinnwand-Einträge, Umfrageergebnisse und neue Medien erscheinen sofort live ohne Seiten-Reload.
+- 📸 **Verschlüsselte Medien-Pipeline:**
+  - Resumable Uploads via **tus 1.0.0 Protokoll**.
+  - `sharp` für automatisches EXIF/GPS-Stripping, WebP-Generierung und Blurhash-Vorschauen.
+  - `ffmpeg` für H.264/AAC Web-Transcoding mit Faststart.
+  - HTTP Range-Requests mit dynamischer Entschlüsselung für schnelles Video-Seeking.
+- 📱 **Apple-inspiriertes Design:**
+  - Ruhiger Look (SF Pro/Inter, 8-pt Raster, nativ wirkende Sheets und Dialoge).
+  - Gestengesteuerte Lightbox mit Swipe & Pinch-to-Zoom.
+  - PWA: Cacht ausschließlich die App-Shell (niemals unverschlüsselte Daten).
+  - Automatische WCAG AA Kontrastberechnung für Host-Farben.
+- ⚙️ **Admin-Dashboard:**
+  - Benutzerverwaltung (Sperren, Rollen, Löschen).
+  - Quotas & Speicherlimits.
+  - Verschlüsselte SMTP-Konfiguration mit Live-Testmail-Funktion.
+
+---
+
+## Schnellstart mit Docker (Empfohlen)
+
+Das gesamte Projekt läuft in einem einzigen Container ohne externe Datenbanken oder Hilfsdienste.
+
+### 1. `docker-compose.yml` starten
+
+```bash
+docker compose up -d
 ```
 
-To recreate this project with the same configuration:
+Öffne anschließend `http://localhost:3000` im Browser. Der erste registrierte Benutzer erhält automatisch die Rolle **Administrator**.
 
-```sh
-# recreate this project
-npx sv@0.17.1 create --template minimal --types ts --add prettier eslint vitest="usages:unit" playwright sveltekit-adapter="adapter:node" --no-install .
+### Verzeichnisstruktur der Volumes:
+- `/data`: SQLite-Datenbank (`app.db`) und verschlüsselte Medien-Blobs (`blobs/`).
+- `/config`: RSA-Master-Schlüsselpaar und verpackte Event-Schlüssel (`keys/`).
+
+> **Wichtig für Backups:** Sichern Sie `/data` und `/config` getrennt (siehe `docs/BACKUP.md`). Ohne `/config` können die Daten in `/data` nicht entschlüsselt werden.
+
+---
+
+## Lokale Entwicklung
+
+### Voraussetzungen
+- Node.js 22 LTS
+- pnpm 10+
+- `ffmpeg` (optional für Video-Transcoding)
+
+### Installation & Start
+
+```bash
+# Abhängigkeiten installieren
+pnpm install
+
+# Entwicklungsserver starten
+pnpm dev
 ```
 
-## Developing
+### Qualitätsprüfung & Tests
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+```bash
+# TypeScript Typecheck
+pnpm check
 
-```sh
-npm run dev
+# Unit-Tests mit Vitest
+pnpm test:unit
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+# Vollständiger CI-Lauf (Docs, i18n, Boundaries, No-External, Check, Unit Tests)
+pnpm test:ci
+
+# Produktions-Build erstellen
+pnpm build
 ```
 
-## Building
+---
 
-To create a production version of your app:
+## Konfiguration
 
-```sh
-npm run build
-```
+Der Name der App ist an genau einer Stelle definiert:
+- [`src/lib/config.ts`](file:///src/lib/config.ts) (`APP_NAME = 'Einladung'`).
 
-You can preview the production build with `npm run preview`.
+Umgebungsvariablen:
+| Variable | Standardwert | Beschreibung |
+|---|---|---|
+| `PORT` | `3000` | Port des Webservers |
+| `BASE_URL` | `http://localhost:3000` | Externe URL für Einladungslinks |
+| `DATABASE_PATH` | `data/app.db` | Pfad zur SQLite-Datenbank |
+| `BLOB_STORAGE_PATH` | `data/blobs` | Pfad für verschlüsselte Medien |
+| `MASTER_KEY_DIR` | `config/keys` | Pfad für RSA-Masterschlüssel |
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+---
+
+## Dokumentation
+
+Detaillierte Spezifikationen und Leitfäden:
+- [`docs/ARCHITECTURE.md`](file:///docs/ARCHITECTURE.md) – Systemarchitektur & Datenfluss
+- [`docs/SECURITY.md`](file:///docs/SECURITY.md) – Krypto-Design & Threat-Model
+- [`docs/DESIGN-SYSTEM.md`](file:///docs/DESIGN-SYSTEM.md) – Tokens, Gesten & Barrierefreiheit
+- [`docs/BACKUP.md`](file:///docs/BACKUP.md) – 3-2-1 Backup-Strategie & Disaster Recovery
+- [`docs/DECISIONS.md`](file:///docs/DECISIONS.md) – Architecture Decision Records (ADR)
+- [`docs/features/`](file:///docs/features/) – Feature-Karten für alle Module
+
+---
+
+## Lizenz
+
+MIT Lizenz. Frei für privaten und kommerziellen Gebrauch.
