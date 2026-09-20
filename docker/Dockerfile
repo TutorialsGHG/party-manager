@@ -19,11 +19,14 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Copy package manifests
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
 
-# Install all dependencies including build-tools
-RUN pnpm install --frozen-lockfile
+# Install dependencies skipping lifecycle scripts for layer caching
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Copy application source code
 COPY . .
+
+# Compile native addons (better-sqlite3, argon2) on Linux target
+RUN pnpm rebuild
 
 # Run production build
 RUN pnpm build
