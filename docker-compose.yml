@@ -7,24 +7,32 @@ services:
     container_name: einladung
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - BASE_URL=http://localhost:3000
+      # Set this to the URL guests use (for example https://party.example).
+      # ORIGIN defaults to this value in the entrypoint for SvelteKit's CSRF check.
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      # Tus uploads use 1 MiB chunks; keep SvelteKit's request limit above that.
+      - BODY_SIZE_LIMIT=2M
       - DATABASE_PATH=/data/app.db
       - BLOB_STORAGE_PATH=/data/blobs
       - MASTER_KEY_DIR=/config/keys
       - EVENTS_KEY_DIR=/config/keys/events
-      # Optional master key passphrase - if omitted, auto-generated on first boot
-      # - MASTER_KEY_PASSPHRASE=your-secure-passphrase
+      # Required before exposing the app outside a trusted local environment.
+      - ENCRYPTION_PASSPHRASE=${ENCRYPTION_PASSPHRASE:-}
     volumes:
       # Persistent SQLite DB and encrypted media blobs
       - party_data:/data
       # Cryptographic master keys and event keys (back up separately!)
       - party_config:/config
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', (r) => { process.exit(r.statusCode < 400 ? 0 : 1); }).on('error', () => process.exit(1));\""]
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "require(''http'').get(''http://localhost:3000/api/health'', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on(''error'', () => process.exit(1));"'
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

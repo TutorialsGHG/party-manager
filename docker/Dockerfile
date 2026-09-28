@@ -63,6 +63,7 @@ RUN chmod +x /entrypoint.sh
 # Set standard environment variables
 ENV NODE_ENV=production \
     PORT=3000 \
+    BODY_SIZE_LIMIT=2M \
     DATABASE_PATH=/data/app.db \
     BLOB_STORAGE_PATH=/data/blobs \
     MASTER_KEY_DIR=/config/keys \
