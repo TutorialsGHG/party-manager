@@ -1,9 +1,11 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
-    image: party-app:latest
+    # Use official prebuilt container from GitHub Container Registry:
+    image: ghcr.io/tutorialsghg/party-manager:latest
+    # Or build locally:
+    # build:
+    #   context: .
+    #   dockerfile: docker/Dockerfile
     container_name: einladung
     restart: unless-stopped
     ports:

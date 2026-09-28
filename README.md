@@ -38,6 +38,8 @@ Das gesamte Projekt läuft in einem einzigen Container ohne externe Datenbanken 
 
 ### 1. `docker-compose.yml` starten
 
+Das fertige Image wird automatisch von der GitHub Container Registry bezogen:
+
 ```bash
 docker compose up -d
 ```
