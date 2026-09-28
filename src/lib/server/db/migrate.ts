@@ -7,9 +7,9 @@ import { getDb } from './client';
  * migration SQL directly rather than reading from the filesystem.
  */
 const MIGRATIONS: [name: string, sql: string][] = [
-  [
-    '001_initial.sql',
-    `
+	[
+		'001_initial.sql',
+		`
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email_hash TEXT UNIQUE NOT NULL,
@@ -171,14 +171,45 @@ CREATE TABLE IF NOT EXISTS system_settings (
   updated_at INTEGER NOT NULL
 );
 `
-  ]
+	],
+	[
+		'002_companion_invites.sql',
+		`
+ALTER TABLE events ADD COLUMN max_companions INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE guests ADD COLUMN companion_invite_id TEXT REFERENCES companion_invites(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS companion_invites (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  owner_guest_id TEXT NOT NULL REFERENCES guests(id) ON DELETE CASCADE,
+  token_hash TEXT UNIQUE NOT NULL,
+  claimed_by_guest_id TEXT REFERENCES guests(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_companion_invites_event ON companion_invites(event_id);
+CREATE INDEX IF NOT EXISTS idx_companion_invites_owner ON companion_invites(owner_guest_id);
+`
+	],
+	[
+		'003_companion_invite_names.sql',
+		`
+ALTER TABLE companion_invites ADD COLUMN companion_name_cipher TEXT;
+`
+	],
+	[
+		'004_companion_invite_tokens.sql',
+		`
+ALTER TABLE companion_invites ADD COLUMN token_cipher TEXT;
+`
+	]
 ];
 
 export function runMigrations(): { applied: string[] } {
-  const db = getDb();
+	const db = getDb();
 
-  // Create migrations tracker table if not exists
-  db.exec(`
+	// Create migrations tracker table if not exists
+	db.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE NOT NULL,
@@ -186,26 +217,26 @@ export function runMigrations(): { applied: string[] } {
     );
   `);
 
-  const appliedRows = db.prepare('SELECT name FROM _migrations').all() as { name: string }[];
-  const appliedSet = new Set(appliedRows.map((r) => r.name));
+	const appliedRows = db.prepare('SELECT name FROM _migrations').all() as { name: string }[];
+	const appliedSet = new Set(appliedRows.map((r) => r.name));
 
-  const newlyApplied: string[] = [];
+	const newlyApplied: string[] = [];
 
-  for (const [name, sql] of MIGRATIONS) {
-    if (!appliedSet.has(name)) {
-      const applyTx = db.transaction(() => {
-        db.exec(sql);
-        db.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(
-          name,
-          Date.now()
-        );
-      });
+	for (const [name, sql] of MIGRATIONS) {
+		if (!appliedSet.has(name)) {
+			const applyTx = db.transaction(() => {
+				db.exec(sql);
+				db.prepare('INSERT INTO _migrations (name, applied_at) VALUES (?, ?)').run(
+					name,
+					Date.now()
+				);
+			});
 
-      applyTx();
-      newlyApplied.push(name);
-      console.log(`Applied migration: ${name}`);
-    }
-  }
+			applyTx();
+			newlyApplied.push(name);
+			console.log(`Applied migration: ${name}`);
+		}
+	}
 
-  return { applied: newlyApplied };
+	return { applied: newlyApplied };
 }
