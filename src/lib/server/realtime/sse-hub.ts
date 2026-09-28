@@ -1,53 +1,53 @@
 type SSEController = ReadableStreamDefaultController<string>;
 
 interface ClientConnection {
-  id: string;
-  controller: SSEController;
+	id: string;
+	controller: SSEController;
 }
 
 class SSEHub {
-  private eventRooms = new Map<string, Set<ClientConnection>>();
+	private eventRooms = new Map<string, Set<ClientConnection>>();
 
-  addClient(eventId: string, controller: SSEController): () => void {
-    if (!this.eventRooms.has(eventId)) {
-      this.eventRooms.set(eventId, new Set());
-    }
+	addClient(eventId: string, controller: SSEController): () => void {
+		if (!this.eventRooms.has(eventId)) {
+			this.eventRooms.set(eventId, new Set());
+		}
 
-    const room = this.eventRooms.get(eventId)!;
-    const client: ClientConnection = {
-      id: Math.random().toString(36).substring(2, 9),
-      controller
-    };
+		const room = this.eventRooms.get(eventId)!;
+		const client: ClientConnection = {
+			id: Math.random().toString(36).substring(2, 9),
+			controller
+		};
 
-    room.add(client);
+		room.add(client);
 
-    // Return cleanup unsubscribe function
-    return () => {
-      room.delete(client);
-      if (room.size === 0) {
-        this.eventRooms.delete(eventId);
-      }
-    };
-  }
+		// Return cleanup unsubscribe function
+		return () => {
+			room.delete(client);
+			if (room.size === 0) {
+				this.eventRooms.delete(eventId);
+			}
+		};
+	}
 
-  broadcast(eventId: string, eventType: string, data: any) {
-    const room = this.eventRooms.get(eventId);
-    if (!room || room.size === 0) return;
+	broadcast(eventId: string, eventType: string, data: any) {
+		const room = this.eventRooms.get(eventId);
+		if (!room || room.size === 0) return;
 
-    const payload = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+		const payload = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
 
-    for (const client of room) {
-      try {
-        client.controller.enqueue(payload);
-      } catch {
-        room.delete(client);
-      }
-    }
-  }
+		for (const client of room) {
+			try {
+				client.controller.enqueue(payload);
+			} catch {
+				room.delete(client);
+			}
+		}
+	}
 
-  getActiveClientCount(eventId: string): number {
-    return this.eventRooms.get(eventId)?.size || 0;
-  }
+	getActiveClientCount(eventId: string): number {
+		return this.eventRooms.get(eventId)?.size || 0;
+	}
 }
 
 export const sseHub = new SSEHub();

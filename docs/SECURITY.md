@@ -1,6 +1,7 @@
 ﻿# Sicherheitsarchitektur & Krypto-Design
 
 ## 1. Schlüsselhierarchie (Envelope Encryption)
+
 Die Anwendung implementiert Envelope Encryption mit OpenSSL/Node.js `crypto`:
 
 1. **Master-Schlüsselpaar (RSA-4096):**
@@ -16,6 +17,7 @@ Die Anwendung implementiert Envelope Encryption mit OpenSSL/Node.js `crypto`:
    - Gespeichert in der `media`-Tabelle, mit dem Event-Key per AES-256-GCM verpackt.
 
 ## 2. Medien-Verschlüsselung (Chunked AES-256-GCM)
+
 - Chunks von jeweils exakt **1 MiB** (1.048.576 Bytes Klartext).
 - Format pro Chunk: `[Nonce 12B][Ciphertext max 1 MiB][AuthTag 16B]`.
 - Nonce: 8 Bytes dateispezifischer Salt + 4 Bytes Big-Endian Chunk-Index.
@@ -23,15 +25,20 @@ Die Anwendung implementiert Envelope Encryption mit OpenSSL/Node.js `crypto`:
 - HTTP Range-Requests entschlüsseln deterministisch nur die angeforderten Chunks.
 
 ## 3. Textdaten-Verschlüsselung
+
 Sensible Spalten (Titel, Beschreibung, Adressen, Gästenamen, Kommentare, Umfragetexte) werden mit dem EK per AES-256-GCM verschlüsselt gespeichert.
+
 - AAD = `{table}:{row_id}:{column_name}` (verhindert Vertauschen von Feldern zwischen Zeilen/Tabellen).
 - Unverschlüsselt bleiben nur Metadaten für Indizes und Status (`id`, `created_at`, `status`, `sort_order`).
 
 ## 4. Crypto-Shredding (Löschgarantie)
+
 Beim Löschen eines Events wird der verpackte Event-Schlüssel `/config/keys/events/{event_id}.key` sofort unwiderruflich aus dem Dateisystem entfernt.
+
 - **Garantie:** Selbst wenn Datenträger-Fragmente auf SSDs, ZFS/btrfs Copy-on-Write-Dateisystemen oder Snapshots verbleiben, sind alle Daten und Medien des Events mathematisch unlesbar.
 - Zusätzlich werden alle SQLite-Einträge und Blobs physisch gelöscht, gefolgt von WAL-Checkpoint und `secure_delete = ON`.
 
 ## 5. Threat Model & Ehrliche Grenzen
+
 - **Geschützt gegen:** Diebstahl von Server-Festplatten, Diebstahl unberechtigter Daten-Backups, Leaks verwaister Temp-Dateien.
 - **NICHT geschützt gegen:** Einen kompromittierten laufenden Server mit Root-Rechten oder RAM-Dump zur Laufzeit. Wer Root-Zugriff hat, kann Schlüssel aus dem laufenden Node-Prozess extrahieren. Hierfür ist im Backlog ein optionaler E2E-Fragment-Modus vorgesehen.

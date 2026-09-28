@@ -44,7 +44,10 @@ docker compose up -d
 
 Öffne anschließend `http://localhost:3000` im Browser. Der erste registrierte Benutzer erhält automatisch die Rolle **Administrator**.
 
+Für eine öffentliche Installation kopiere `.env.example` nach `.env`, setze `BASE_URL` auf die öffentliche HTTPS-URL und hinterlege ein langes zufälliges `ENCRYPTION_PASSPHRASE`. Die Passphrase darf nach dem ersten Start nicht verloren gehen, da sie für die Entschlüsselung des Master-Schlüssels benötigt wird.
+
 ### Verzeichnisstruktur der Volumes:
+
 - `/data`: SQLite-Datenbank (`app.db`) und verschlüsselte Medien-Blobs (`blobs/`).
 - `/config`: RSA-Master-Schlüsselpaar und verpackte Event-Schlüssel (`keys/`).
 
@@ -55,6 +58,7 @@ docker compose up -d
 ## Lokale Entwicklung
 
 ### Voraussetzungen
+
 - Node.js 22 LTS
 - pnpm 10+
 - `ffmpeg` (optional für Video-Transcoding)
@@ -90,24 +94,30 @@ pnpm build
 ## Konfiguration
 
 Der Name der App ist an genau einer Stelle definiert:
+
 - [`src/lib/config.ts`](file:///src/lib/config.ts) (`APP_NAME = 'Einladung'`).
 
 Umgebungsvariablen:
-| Variable | Standardwert | Beschreibung |
-|---|---|---|
-| `PORT` | `3000` | Port des Webservers |
-| `BASE_URL` | `http://localhost:3000` | Externe URL für Einladungslinks |
-| `DATABASE_PATH` | `data/app.db` | Pfad zur SQLite-Datenbank |
-| `BLOB_STORAGE_PATH` | `data/blobs` | Pfad für verschlüsselte Medien |
-| `MASTER_KEY_DIR` | `config/keys` | Pfad für RSA-Masterschlüssel |
+
+| Variable            | Standardwert            | Beschreibung                                                                                                                                      |
+| ------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`              | `3000`                  | Port des Webservers                                                                                                                               |
+| `BASE_URL`          | `http://localhost:3000` | Externe URL für Einladungslinks                                                                                                                   |
+| `ORIGIN`            | Wert von `BASE_URL`     | Browser-seitige Basis-URL für die Same-Origin-/CSRF-Prüfung. Wird beim Containerstart aus `BASE_URL` gesetzt, sofern nicht explizit konfiguriert. |
+| `BODY_SIZE_LIMIT`   | `2M`                    | Maximale Größe eines einzelnen HTTP-Requests; muss größer als ein tus-Upload-Chunk sein.                                                          |
+| `DATABASE_PATH`     | `data/app.db`           | Pfad zur SQLite-Datenbank                                                                                                                         |
+| `BLOB_STORAGE_PATH` | `data/blobs`            | Pfad für verschlüsselte Medien                                                                                                                    |
+| `MASTER_KEY_DIR`    | `config/keys`           | Pfad für RSA-Masterschlüssel                                                                                                                      |
 
 ---
 
 ## Dokumentation
 
 Detaillierte Spezifikationen und Leitfäden:
+
 - [`docs/ARCHITECTURE.md`](file:///docs/ARCHITECTURE.md) – Systemarchitektur & Datenfluss
 - [`docs/SECURITY.md`](file:///docs/SECURITY.md) – Krypto-Design & Threat-Model
+- [`docs/REVERSE_PROXY.md`](file:///docs/REVERSE_PROXY.md) – Reverse-Proxy Konfiguration (Caddy, Nginx, Traefik, Cloudflare)
 - [`docs/DESIGN-SYSTEM.md`](file:///docs/DESIGN-SYSTEM.md) – Tokens, Gesten & Barrierefreiheit
 - [`docs/BACKUP.md`](file:///docs/BACKUP.md) – 3-2-1 Backup-Strategie & Disaster Recovery
 - [`docs/DECISIONS.md`](file:///docs/DECISIONS.md) – Architecture Decision Records (ADR)

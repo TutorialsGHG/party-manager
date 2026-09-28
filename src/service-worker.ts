@@ -4,66 +4,69 @@ import { build, files, version } from '$service-worker';
 const CACHE_NAME = `einladung-shell-${version}`;
 
 // Only cache static assets, icons, fonts, and the compiled app bundle
-const ASSETS_TO_CACHE = [
-  ...build,
-  ...files.filter(f => !f.endsWith('.map'))
-];
+const ASSETS_TO_CACHE = [...build, ...files.filter((f) => !f.endsWith('.map'))];
 
 self.addEventListener('install', (event: any) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => {
-      (self as any).skipWaiting();
-    })
-  );
+	event.waitUntil(
+		caches
+			.open(CACHE_NAME)
+			.then((cache) => {
+				return cache.addAll(ASSETS_TO_CACHE);
+			})
+			.then(() => {
+				(self as any).skipWaiting();
+			})
+	);
 });
 
 self.addEventListener('activate', (event: any) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    }).then(() => {
-      (self as any).clients.claim();
-    })
-  );
+	event.waitUntil(
+		caches
+			.keys()
+			.then((keys) => {
+				return Promise.all(
+					keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+				);
+			})
+			.then(() => {
+				(self as any).clients.claim();
+			})
+	);
 });
 
 self.addEventListener('fetch', (event: any) => {
-  const url = new URL(event.request.url);
+	const url = new URL(event.request.url);
 
-  // HARD PRIVACY RULE: Never cache API responses, tus uploads, or encrypted media
-  if (
-    event.request.method !== 'GET' ||
-    url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/blobs/') ||
-    url.pathname.startsWith('/e/')
-  ) {
-    return;
-  }
+	// HARD PRIVACY RULE: Never cache API responses, tus uploads, or encrypted media
+	if (
+		event.request.method !== 'GET' ||
+		url.pathname.startsWith('/api/') ||
+		url.pathname.startsWith('/blobs/') ||
+		url.pathname.startsWith('/e/')
+	) {
+		return;
+	}
 
-  // Cache-first for build and static assets
-  if (ASSETS_TO_CACHE.includes(url.pathname)) {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        return cached || fetch(event.request);
-      })
-    );
-    return;
-  }
+	// Cache-first for build and static assets
+	if (ASSETS_TO_CACHE.includes(url.pathname)) {
+		event.respondWith(
+			caches.match(event.request).then((cached) => {
+				return cached || fetch(event.request);
+			})
+		);
+		return;
+	}
 
-  // Network-first for navigation with graceful offline fallback
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(async () => {
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
+	// Network-first for navigation with graceful offline fallback
+	if (event.request.mode === 'navigate') {
+		event.respondWith(
+			fetch(event.request).catch(async () => {
+				const cached = await caches.match(event.request);
+				if (cached) return cached;
 
-        // Clean offline fallback shell
-        return new Response(
-          `<!DOCTYPE html>
+				// Clean offline fallback shell
+				return new Response(
+					`<!DOCTYPE html>
           <html lang="de">
           <head>
             <meta charset="utf-8">
@@ -82,9 +85,9 @@ self.addEventListener('fetch', (event: any) => {
             </div>
           </body>
           </html>`,
-          { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-        );
-      })
-    );
-  }
+					{ headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+				);
+			})
+		);
+	}
 });

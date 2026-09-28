@@ -2,9 +2,28 @@
 
 Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Prinzipien von [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) dokumentiert.
 
+## [Unreleased]
+
+### Fixed
+
+- CSRF-/Same-Origin-Konfiguration wird beim Containerstart aus der öffentlichen Basis-URL abgeleitet; schreibende Formulare funktionieren damit nach einem Deployment auch hinter einer konfigurierten öffentlichen URL.
+- Tus-Uploads bleiben unter dem Request-Limit und verwenden die persistierenden Docker-Volumes für Datenbank, Blobs, temporäre Mediendateien und Schlüssel.
+- Die RSVP-Zusagen zeigen überall die tatsächliche Gästezahl einschließlich Begleitpersonen; der Begleitpersonen-Zähler ist ausschließlich über Plus/Minus bedienbar.
+- Poll- und Medienänderungen aktualisieren geöffnete Einladungen und die Host-Ansicht ohne vollständigen Seiten-Reload.
+
+### Added
+
+- **Healthcheck-Endpunkt:** Neuer, ressourcenschonender Endpunkt `/api/health` für Docker-Compose, Kubernetes und Uptime-Monitoring.
+- **Galerie-Massen-Download (ZIP):** Hosts können alle geteilten Medien eines Events mit einem Klick als unkomprimiertes `.zip`-Archiv ohne externe Abhängigkeiten herunterladen.
+- **Reverse-Proxy Dokumentation:** Detaillierte Anleitung für Caddy, Nginx (mit SSE `proxy_buffering off;`), Traefik und Cloudflare Tunnel in `docs/REVERSE_PROXY.md`.
+- **Open-Source & GitHub-Vorbereitung:** MIT-Lizenz, GitHub Actions CI/CD Pipeline (`.github/workflows/ci.yml`), Issue- und Pull-Request-Templates sowie Sicherheitsrichtlinie (`SECURITY.md`).
+- **Begleitpersonen-System:** Der Host kann reservierte Begleitplätze pro Einladung festlegen. Zusagende Hauptgäste erhalten persönliche Begleitlinks; Begleitpersonen können Namen hinterlegen, jedoch keinen eigenen RSVP-Status abgeben.
+- Host-Ansicht für Pinnwand-Beiträge (veröffentlichen, anpinnen und löschen) sowie für Umfragen (anlegen, Optionen konfigurieren, öffnen/schließen).
+
 ## [1.0.0] - 2026-09-20
 
 ### Added
+
 - **Architektur & Fundament:**
   - SvelteKit mit Svelte 5 Runes und `@sveltejs/adapter-node`.
   - SQLite mit `better-sqlite3` im WAL-Modus und `secure_delete=ON`.

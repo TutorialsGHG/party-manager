@@ -1,6 +1,7 @@
 ﻿# Architekturüberblick
 
 ## 1. Systemarchitektur
+
 Die Einladungs-App ("Einladung") ist als Single-Container-Webanwendung konzipiert, die keine externen Datenbanken oder Cache-Server benötigt.
 
 ```
@@ -22,6 +23,7 @@ Die Einladungs-App ("Einladung") ist als Single-Container-Webanwendung konzipier
 ```
 
 ## 2. Schichtenmodell & Abhängigkeitsregeln
+
 - **Routes (`src/routes/`):** Verantwortlich nur für HTTP-Routing, URL-Parameter, Session-Prüfung und Aufruf der Feature-Services. Enthält kein SQL und keine Krypto-Logik.
 - **Features (`src/lib/features/`):** Kapseln die Domänenlogik (z. B. Abstimmungen, Pinnwand, Gästeverwaltung).
 - **Server-Core (`src/lib/server/`):**
@@ -32,6 +34,7 @@ Die Einladungs-App ("Einladung") ist als Single-Container-Webanwendung konzipier
 - **UI (`src/lib/ui/`):** Wiederverwendbare, zustandsarme Design-System-Komponenten und Design-Tokens.
 
 ## 3. Datenfluss bei Anfragen
+
 1. Client sendet Request (z. B. `GET /e/:token`).
 2. SvelteKit `hooks.server.ts` prüft Rate-Limits und setzt Security-Header (CSP mit Nonce, HSTS, no-referrer).
 3. Route ruft den entsprechenden Feature-Service auf.

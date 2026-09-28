@@ -4,183 +4,198 @@
    ========================================================================== */
 
 :root {
-  /* Typography */
-  --font-family-system: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, system-ui, sans-serif;
-  --font-family-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	/* Typography */
+	--font-family-system:
+		-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', Inter, system-ui, sans-serif;
+	--font-family-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  /* Font Sizes (Fluid with clamp) */
-  --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.8125rem); /* 12-13px */
-  --text-sm: clamp(0.875rem, 0.825rem + 0.25vw, 0.9375rem); /* 14-15px */
-  --text-base: 1rem; /* 16px - Never smaller for inputs on iOS */
-  --text-lg: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem); /* 18-20px */
-  --text-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem); /* 20-24px */
-  --text-2xl: clamp(1.5rem, 1.35rem + 0.75vw, 1.875rem); /* 24-30px */
-  --text-3xl: clamp(1.875rem, 1.65rem + 1.1vw, 2.375rem); /* 30-38px */
+	/* Font Sizes (Fluid with clamp) */
+	--text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.8125rem); /* 12-13px */
+	--text-sm: clamp(0.875rem, 0.825rem + 0.25vw, 0.9375rem); /* 14-15px */
+	--text-base: 1rem; /* 16px - Never smaller for inputs on iOS */
+	--text-lg: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem); /* 18-20px */
+	--text-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem); /* 20-24px */
+	--text-2xl: clamp(1.5rem, 1.35rem + 0.75vw, 1.875rem); /* 24-30px */
+	--text-3xl: clamp(1.875rem, 1.65rem + 1.1vw, 2.375rem); /* 30-38px */
 
-  /* 8-pt Grid Spacing */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
+	/* 8-pt Grid Spacing */
+	--space-1: 4px;
+	--space-2: 8px;
+	--space-3: 12px;
+	--space-4: 16px;
+	--space-5: 20px;
+	--space-6: 24px;
+	--space-8: 32px;
+	--space-10: 40px;
+	--space-12: 48px;
+	--space-16: 64px;
 
-  /* Continuous Curves (Squircle-like) */
-  --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 22px;
-  --radius-pill: 9999px;
+	/* Continuous Curves (Squircle-like) */
+	--radius-xs: 6px;
+	--radius-sm: 10px;
+	--radius-md: 14px;
+	--radius-lg: 18px;
+	--radius-xl: 22px;
+	--radius-pill: 9999px;
 
-  /* Spring Animations */
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.12);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 350ms;
+	/* Spring Animations */
+	--ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.12);
+	--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+	--duration-fast: 150ms;
+	--duration-normal: 250ms;
+	--duration-slow: 350ms;
 
-  /* Touch Targets & Minimums */
-  --min-touch-target: 44px;
-  --max-content-width: 640px;
-  --max-desktop-width: 1080px;
+	/* Touch Targets & Minimums */
+	--min-touch-target: 44px;
+	--max-content-width: 640px;
+	--max-desktop-width: 1080px;
 
-  /* Light Theme Colors (Default) */
-  --bg-canvas: #F2F2F7; /* iOS grouped background */
-  --bg-surface: #FFFFFF;
-  --bg-surface-elevated: #FFFFFF;
-  --bg-subtle: #E5E5EA;
-  --bg-grouped-cell: #FFFFFF;
+	/* Light Theme Colors (Default) */
+	--bg-canvas: #f2f2f7; /* iOS grouped background */
+	--bg-surface: #ffffff;
+	--bg-surface-elevated: #ffffff;
+	--bg-subtle: #e5e5ea;
+	--bg-grouped-cell: #ffffff;
 
-  --text-primary: #000000;
-  --text-secondary: #6C6C70;
-  --text-tertiary: #8E8E93;
+	--text-primary: #000000;
+	--text-secondary: #6c6c70;
+	--text-tertiary: #8e8e93;
 
-  --border-subtle: rgba(0, 0, 0, 0.08);
-  --border-strong: rgba(0, 0, 0, 0.16);
-  --separator: rgba(60, 60, 67, 0.12);
+	--border-subtle: rgba(0, 0, 0, 0.08);
+	--border-strong: rgba(0, 0, 0, 0.16);
+	--separator: rgba(60, 60, 67, 0.12);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+	--shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+	--shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
 
-  --glass-bg: rgba(255, 255, 255, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.4);
+	--glass-bg: rgba(255, 255, 255, 0.82);
+	--glass-border: rgba(255, 255, 255, 0.4);
 
-  /* Host Accent Tokens (Defaults to Classic Blue) */
-  --accent: #007AFF;
-  --accent-hover: #0062CC;
-  --accent-active: #004DB3;
-  --accent-contrast: #FFFFFF;
-  --accent-subtle: rgba(0, 122, 255, 0.12);
-  --accent-border: rgba(0, 122, 255, 0.25);
+	/* Host Accent Tokens (Defaults to Classic Blue) */
+	--accent: #007aff;
+	--accent-hover: #0062cc;
+	--accent-active: #004db3;
+	--accent-contrast: #ffffff;
+	--accent-subtle: rgba(0, 122, 255, 0.12);
+	--accent-border: rgba(0, 122, 255, 0.25);
 
-  /* Status Colors */
-  --color-success: #34C759;
-  --color-warning: #FF9500;
-  --color-danger: #FF3B30;
-  --color-danger-contrast: #FFFFFF;
+	/* Status Colors */
+	--color-success: #34c759;
+	--color-warning: #ff9500;
+	--color-danger: #ff3b30;
+	--color-danger-contrast: #ffffff;
+
+	/* Compatibility aliases for feature components. They stay tied to the
+     semantic tokens above, so dark mode can never fall back to light colours. */
+	--color-bg-secondary: var(--bg-subtle);
+	--color-surface: var(--bg-surface);
+	--color-text: var(--text-primary);
+	--color-text-secondary: var(--text-secondary);
+	--color-border: var(--border-subtle);
+	--color-primary: var(--accent);
+	--color-primary-subtle: var(--accent-subtle);
 }
 
 /* Dark Theme */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg-canvas: #000000; /* iOS dark pure black */
-    --bg-surface: #1C1C1E;
-    --bg-surface-elevated: #2C2C2E;
-    --bg-subtle: #2C2C2E;
-    --bg-grouped-cell: #1C1C1E;
+	:root:not([data-theme='light']) {
+		--bg-canvas: #000000; /* iOS dark pure black */
+		--bg-surface: #1c1c1e;
+		--bg-surface-elevated: #2c2c2e;
+		--bg-subtle: #2c2c2e;
+		--bg-grouped-cell: #1c1c1e;
 
-    --text-primary: #FFFFFF;
-    --text-secondary: #8E8E93;
-    --text-tertiary: #636366;
+		--text-primary: #ffffff;
+		--text-secondary: #8e8e93;
+		--text-tertiary: #636366;
 
-    --border-subtle: rgba(255, 255, 255, 0.12);
-    --border-strong: rgba(255, 255, 255, 0.24);
-    --separator: rgba(84, 84, 88, 0.36);
+		--border-subtle: rgba(255, 255, 255, 0.12);
+		--border-strong: rgba(255, 255, 255, 0.24);
+		--separator: rgba(84, 84, 88, 0.36);
 
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+		--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+		--shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+		--shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
 
-    --glass-bg: rgba(28, 28, 30, 0.82);
-    --glass-border: rgba(255, 255, 255, 0.12);
+		--glass-bg: rgba(28, 28, 30, 0.82);
+		--glass-border: rgba(255, 255, 255, 0.12);
 
-    --accent-subtle: rgba(0, 122, 255, 0.2);
-    --accent-border: rgba(0, 122, 255, 0.35);
-  }
+		--accent-subtle: rgba(0, 122, 255, 0.2);
+		--accent-border: rgba(0, 122, 255, 0.35);
+	}
 }
 
-:root[data-theme="dark"] {
-  --bg-canvas: #000000;
-  --bg-surface: #1C1C1E;
-  --bg-surface-elevated: #2C2C2E;
-  --bg-subtle: #2C2C2E;
-  --bg-grouped-cell: #1C1C1E;
+:root[data-theme='dark'] {
+	--bg-canvas: #000000;
+	--bg-surface: #1c1c1e;
+	--bg-surface-elevated: #2c2c2e;
+	--bg-subtle: #2c2c2e;
+	--bg-grouped-cell: #1c1c1e;
 
-  --text-primary: #FFFFFF;
-  --text-secondary: #8E8E93;
-  --text-tertiary: #636366;
+	--text-primary: #ffffff;
+	--text-secondary: #8e8e93;
+	--text-tertiary: #636366;
 
-  --border-subtle: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.24);
-  --separator: rgba(84, 84, 88, 0.36);
+	--border-subtle: rgba(255, 255, 255, 0.12);
+	--border-strong: rgba(255, 255, 255, 0.24);
+	--separator: rgba(84, 84, 88, 0.36);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
+	--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+	--shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
+	--shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
 
-  --glass-bg: rgba(28, 28, 30, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.12);
+	--glass-bg: rgba(28, 28, 30, 0.82);
+	--glass-border: rgba(255, 255, 255, 0.12);
 
-  --accent-subtle: rgba(0, 122, 255, 0.2);
-  --accent-border: rgba(0, 122, 255, 0.35);
+	--accent-subtle: rgba(0, 122, 255, 0.2);
+	--accent-border: rgba(0, 122, 255, 0.35);
 }
 
 /* Global resets & mobile ergonomics */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	-webkit-tap-highlight-color: transparent;
 }
 
 html {
-  font-family: var(--font-family-system);
-  background-color: var(--bg-canvas);
-  color: var(--text-primary);
-  font-size: 16px;
-  line-height: 1.45;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-size-adjust: 100%;
+	font-family: var(--font-family-system);
+	background-color: var(--bg-canvas);
+	color: var(--text-primary);
+	font-size: 16px;
+	line-height: 1.45;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-size-adjust: 100%;
 }
 
 body {
-  min-height: 100dvh;
-  padding-top: env(safe-area-inset-top, 0);
-  padding-right: env(safe-area-inset-right, 0);
-  padding-bottom: env(safe-area-inset-bottom, 0);
-  padding-left: env(safe-area-inset-left, 0);
-  overflow-x: hidden;
+	min-height: 100dvh;
+	padding-top: env(safe-area-inset-top, 0);
+	padding-right: env(safe-area-inset-right, 0);
+	padding-bottom: env(safe-area-inset-bottom, 0);
+	padding-left: env(safe-area-inset-left, 0);
+	overflow-x: hidden;
 }
 
 /* Accessible Focus Ring */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
 }
 
 /* Reduced Motion Support */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 }

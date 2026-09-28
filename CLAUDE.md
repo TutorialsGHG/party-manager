@@ -1,3 +1,3 @@
 # Referenz
 
-Siehe [AGENTS.md](./AGENTS.md) für alle Regeln, Verzeichnisstrukturen und Arbeitsanweisungen.
+Siehe [AGENTS.md](./AGENTS.md) fï¿½r alle Regeln, Verzeichnisstrukturen und Arbeitsanweisungen.

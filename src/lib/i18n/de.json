@@ -1,89 +1,89 @@
 {
-  "app": {
-    "name": "Einladung",
-    "tagline": "Private Einladungen für Partys und Geburtstage",
-    "loading": "Wird geladen...",
-    "error": "Ein unerwarteter Fehler ist aufgetreten.",
-    "notFound": "Seite oder Einladung nicht gefunden.",
-    "back": "Zurück",
-    "cancel": "Abbrechen",
-    "save": "Speichern",
-    "delete": "Löschen",
-    "confirm": "Bestätigen",
-    "close": "Schließen",
-    "copy": "Kopieren",
-    "copied": "Kopiert!",
-    "share": "Teilen"
-  },
-  "auth": {
-    "login": "Anmelden",
-    "register": "Konto erstellen",
-    "email": "E-Mail-Adresse",
-    "password": "Passwort",
-    "recoveryCodes": "Wiederherstellungscodes",
-    "recoveryCodeNotice": "Speichere diese 10 Einmal-Codes an einem sicheren Ort. Sie werden nur dieses eine Mal angezeigt.",
-    "passkey": "Mit Passkey anmelden",
-    "totp": "Zwei-Faktor-Code",
-    "logout": "Abmelden",
-    "powSolving": "Sicherheitsprüfung wird durchgeführt..."
-  },
-  "events": {
-    "create": "Neues Event erstellen",
-    "title": "Titel des Events",
-    "description": "Beschreibung",
-    "dateTime": "Datum & Uhrzeit",
-    "location": "Ort",
-    "openAppleMaps": "In Apple Maps öffnen",
-    "openOsm": "In OpenStreetMap öffnen",
-    "openGoogleMaps": "In Google Maps öffnen",
-    "addToCalendar": "Zum Kalender hinzufügen",
-    "qrCode": "QR-Code anzeigen",
-    "shareInvite": "Einladung teilen",
-    "countdownDays": "Tage",
-    "countdownHours": "Std.",
-    "countdownMinutes": "Min.",
-    "countdownSeconds": "Sek."
-  },
-  "rsvp": {
-    "title": "Deine Rückmeldung",
-    "yes": "Ich bin dabei",
-    "maybe": "Vielleicht",
-    "no": "Kann leider nicht",
-    "companions": "Begleitpersonen",
-    "companionNames": "Namen der Begleitpersonen",
-    "notes": "Notizen oder Allergien",
-    "submit": "Rückmeldung speichern",
-    "attendingSummary": "Personen haben zugesagt"
-  },
-  "polls": {
-    "title": "Abstimmungen",
-    "vote": "Abstimmen",
-    "changeVote": "Stimme ändern",
-    "anonymous": "Anonyme Umfrage",
-    "closed": "Abstimmung beendet",
-    "addOption": "Option hinzufügen"
-  },
-  "wall": {
-    "title": "Pinnwand",
-    "placeholder": "Schreibe etwas auf die Pinnwand...",
-    "send": "Senden",
-    "pinned": "Angepinnt",
-    "empty": "Noch keine Beiträge vorhanden. Sei der Erste!"
-  },
-  "gallery": {
-    "title": "Fotos & Videos",
-    "upload": "Fotos/Videos hochladen",
-    "dropzone": "Fotos & Videos hier ablegen oder antippen",
-    "processing": "Wird verarbeitet...",
-    "downloadOriginal": "Original herunterladen",
-    "empty": "Noch keine Fotos oder Videos hochgeladen."
-  },
-  "admin": {
-    "title": "Administration",
-    "users": "Benutzer",
-    "systemStatus": "Systemstatus",
-    "limits": "Speicherlimits",
-    "smtp": "E-Mail-Einstellungen",
-    "testEmail": "Test-E-Mail senden"
-  }
+	"app": {
+		"name": "Einladung",
+		"tagline": "Private Einladungen für Partys und Geburtstage",
+		"loading": "Wird geladen...",
+		"error": "Ein unerwarteter Fehler ist aufgetreten.",
+		"notFound": "Seite oder Einladung nicht gefunden.",
+		"back": "Zurück",
+		"cancel": "Abbrechen",
+		"save": "Speichern",
+		"delete": "Löschen",
+		"confirm": "Bestätigen",
+		"close": "Schließen",
+		"copy": "Kopieren",
+		"copied": "Kopiert!",
+		"share": "Teilen"
+	},
+	"auth": {
+		"login": "Anmelden",
+		"register": "Konto erstellen",
+		"email": "E-Mail-Adresse",
+		"password": "Passwort",
+		"recoveryCodes": "Wiederherstellungscodes",
+		"recoveryCodeNotice": "Speichere diese 10 Einmal-Codes an einem sicheren Ort. Sie werden nur dieses eine Mal angezeigt.",
+		"passkey": "Mit Passkey anmelden",
+		"totp": "Zwei-Faktor-Code",
+		"logout": "Abmelden",
+		"powSolving": "Sicherheitsprüfung wird durchgeführt..."
+	},
+	"events": {
+		"create": "Neues Event erstellen",
+		"title": "Titel des Events",
+		"description": "Beschreibung",
+		"dateTime": "Datum & Uhrzeit",
+		"location": "Ort",
+		"openAppleMaps": "In Apple Maps öffnen",
+		"openOsm": "In OpenStreetMap öffnen",
+		"openGoogleMaps": "In Google Maps öffnen",
+		"addToCalendar": "Zum Kalender hinzufügen",
+		"qrCode": "QR-Code anzeigen",
+		"shareInvite": "Einladung teilen",
+		"countdownDays": "Tage",
+		"countdownHours": "Std.",
+		"countdownMinutes": "Min.",
+		"countdownSeconds": "Sek."
+	},
+	"rsvp": {
+		"title": "Deine Rückmeldung",
+		"yes": "Ich bin dabei",
+		"maybe": "Vielleicht",
+		"no": "Kann leider nicht",
+		"companions": "Begleitpersonen",
+		"companionNames": "Namen der Begleitpersonen",
+		"notes": "Notizen oder Allergien",
+		"submit": "Rückmeldung speichern",
+		"attendingSummary": "Personen haben zugesagt"
+	},
+	"polls": {
+		"title": "Abstimmungen",
+		"vote": "Abstimmen",
+		"changeVote": "Stimme ändern",
+		"anonymous": "Anonyme Umfrage",
+		"closed": "Abstimmung beendet",
+		"addOption": "Option hinzufügen"
+	},
+	"wall": {
+		"title": "Pinnwand",
+		"placeholder": "Schreibe etwas auf die Pinnwand...",
+		"send": "Senden",
+		"pinned": "Angepinnt",
+		"empty": "Noch keine Beiträge vorhanden. Sei der Erste!"
+	},
+	"gallery": {
+		"title": "Fotos & Videos",
+		"upload": "Fotos/Videos hochladen",
+		"dropzone": "Fotos & Videos hier ablegen oder antippen",
+		"processing": "Wird verarbeitet...",
+		"downloadOriginal": "Original herunterladen",
+		"empty": "Noch keine Fotos oder Videos hochgeladen."
+	},
+	"admin": {
+		"title": "Administration",
+		"users": "Benutzer",
+		"systemStatus": "Systemstatus",
+		"limits": "Speicherlimits",
+		"smtp": "E-Mail-Einstellungen",
+		"testEmail": "Test-E-Mail senden"
+	}
 }

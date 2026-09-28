@@ -19,8 +19,8 @@
 	<div class="card-grid">
 		<Card title="Deine Daten bleiben privat" subtitle="Nur du und deine Gäste haben Zugriff.">
 			<p class="card-text">
-				Alle Inhalte werden verschlüsselt gespeichert. Wenn du ein Event löschst,
-				werden auch die Schlüssel gelöscht – danach kann niemand mehr etwas lesen, auch nicht der Server.
+				Alle Inhalte werden verschlüsselt gespeichert. Wenn du ein Event löschst, werden auch die
+				Schlüssel gelöscht – danach kann niemand mehr etwas lesen, auch nicht der Server.
 			</p>
 		</Card>
 	</div>

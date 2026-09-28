@@ -7,26 +7,26 @@ import { getEventKeyFilePath, evictEventKey } from './envelope';
  * even if copies remain on wear-leveling SSDs, CoW filesystems (ZFS/btrfs), or storage snapshots.
  */
 export function shredEventKey(eventId: string): boolean {
-  evictEventKey(eventId);
+	evictEventKey(eventId);
 
-  const keyPath = getEventKeyFilePath(eventId);
-  if (fs.existsSync(keyPath)) {
-    try {
-      // Overwrite file with random bytes before unlinking where OS allows
-      const stat = fs.statSync(keyPath);
-      const randomBuf = Buffer.alloc(stat.size, 0x00);
-      fs.writeFileSync(keyPath, randomBuf);
-      fs.unlinkSync(keyPath);
-      return true;
-    } catch (err) {
-      console.error(`Failed to shred event key at ${keyPath}:`, err);
-      // Attempt standard unlink if overwrite failed
-      if (fs.existsSync(keyPath)) {
-        fs.unlinkSync(keyPath);
-      }
-      return true;
-    }
-  }
+	const keyPath = getEventKeyFilePath(eventId);
+	if (fs.existsSync(keyPath)) {
+		try {
+			// Overwrite file with random bytes before unlinking where OS allows
+			const stat = fs.statSync(keyPath);
+			const randomBuf = Buffer.alloc(stat.size, 0x00);
+			fs.writeFileSync(keyPath, randomBuf);
+			fs.unlinkSync(keyPath);
+			return true;
+		} catch (err) {
+			console.error(`Failed to shred event key at ${keyPath}:`, err);
+			// Attempt standard unlink if overwrite failed
+			if (fs.existsSync(keyPath)) {
+				fs.unlinkSync(keyPath);
+			}
+			return true;
+		}
+	}
 
-  return false;
+	return false;
 }
