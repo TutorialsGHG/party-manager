@@ -202,6 +202,24 @@ ALTER TABLE companion_invites ADD COLUMN companion_name_cipher TEXT;
 		`
 ALTER TABLE companion_invites ADD COLUMN token_cipher TEXT;
 `
+	],
+	[
+		'005_session_and_rate_limit.sql',
+		`
+-- Session idle timeout support and login throttling.
+-- Existing migrations must never be modified, so this adds new columns/tables only.
+ALTER TABLE sessions ADD COLUMN last_seen_at INTEGER;
+
+-- Login brute-force protection, keyed by account (never by IP: all guests of one
+-- school network share a single public IP behind NAT).
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_hash TEXT NOT NULL,
+  attempted_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_login_attempts_account ON login_attempts(account_hash, attempted_at);
+`
 	]
 ];
 

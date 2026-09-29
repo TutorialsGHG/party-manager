@@ -23,9 +23,10 @@ import { registerGuest } from '$lib/server/db/repositories/guest.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { config } from '$lib/server/config/env';
 import { mediaQueue } from '$lib/server/media/queue';
+import { requireUser } from '$lib/server/auth/require-user';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const event = findEventById(params.id!, locals.user!.id);
+	const event = findEventById(params.id!, requireUser(locals).id);
 	if (!event) {
 		throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 	}
@@ -36,8 +37,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const polls = listPollsForEvent(event.id);
 	const baseUrl = config.baseUrl;
 
+	// The invite token hash is an internal lookup key; it must not be serialized
+	// into the HTML payload. The plaintext token is only returned on create/regen.
+	const { tokenHash: _tokenHash, ...safeEvent } = event;
+
 	return {
-		event,
+		event: safeEvent,
 		rsvp,
 		mediaItems,
 		wallPosts,
@@ -48,7 +53,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	regenerateToken: async ({ params, locals }) => {
-		const newToken = regenerateEventToken(params.id!, locals.user!.id);
+		const newToken = regenerateEventToken(params.id!, requireUser(locals).id);
 		if (!newToken) {
 			return fail(400, { error: 'Link konnte nicht neu generiert werden.' });
 		}
@@ -63,7 +68,7 @@ export const actions: Actions = {
 		if (!Number.isInteger(maxCompanions) || maxCompanions < 0 || maxCompanions > 20) {
 			return fail(400, { error: 'Bitte wähle eine Anzahl zwischen 0 und 20.' });
 		}
-		if (!updateMaxCompanions(params.id!, locals.user!.id, maxCompanions)) {
+		if (!updateMaxCompanions(params.id!, requireUser(locals).id, maxCompanions)) {
 			return fail(404, { error: 'Event nicht gefunden oder keine Berechtigung.' });
 		}
 		sseHub.broadcast(params.id!, 'event:companions', { maxCompanions });
@@ -71,7 +76,7 @@ export const actions: Actions = {
 	},
 
 	retryFailedMedia: async ({ params, locals }) => {
-		const event = findEventById(params.id!, locals.user!.id);
+		const event = findEventById(params.id!, requireUser(locals).id);
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const failedItems = MediaRepository.listByEvent(event.id).filter(
@@ -82,7 +87,7 @@ export const actions: Actions = {
 	},
 
 	deleteEvent: async ({ params, locals }) => {
-		const success = deleteEvent(params.id!, locals.user!.id);
+		const success = deleteEvent(params.id!, requireUser(locals).id);
 		if (!success) {
 			return fail(400, { error: 'Event konnte nicht gelöscht werden.' });
 		}
@@ -90,7 +95,7 @@ export const actions: Actions = {
 	},
 
 	addWallPost: async ({ request, params, locals }) => {
-		const event = findEventById(params.id!, locals.user!.id);
+		const event = findEventById(params.id!, requireUser(locals).id);
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const content = String((await request.formData()).get('content') || '').trim();
@@ -98,14 +103,14 @@ export const actions: Actions = {
 			return fail(400, { error: 'Beitrag darf nicht leer sein (max. 2000 Zeichen).' });
 		}
 
-		const hostGuest = registerGuest(event.id, `host_${locals.user!.id}`, 'Host', true);
+		const hostGuest = registerGuest(event.id, `host_${requireUser(locals).id}`, 'Host', true);
 		const post = createWallPost(event.id, hostGuest.id, content);
 		sseHub.broadcast(event.id, 'wall:new', post);
 		return { success: true };
 	},
 
 	toggleWallPostPin: async ({ request, params, locals }) => {
-		const event = findEventById(params.id!, locals.user!.id);
+		const event = findEventById(params.id!, requireUser(locals).id);
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const postId = String((await request.formData()).get('postId') || '');
@@ -115,7 +120,7 @@ export const actions: Actions = {
 	},
 
 	deleteWallPost: async ({ request, params, locals }) => {
-		const event = findEventById(params.id!, locals.user!.id);
+		const event = findEventById(params.id!, requireUser(locals).id);
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const postId = String((await request.formData()).get('postId') || '');
@@ -125,7 +130,7 @@ export const actions: Actions = {
 	},
 
 	createPoll: async ({ request, params, locals }) => {
-		const event = findEventById(params.id!, locals.user!.id);
+		const event = findEventById(params.id!, requireUser(locals).id);
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const formData = await request.formData();
@@ -152,7 +157,7 @@ export const actions: Actions = {
 	},
 
 	togglePoll: async ({ request, params, locals }) => {
-		const event = findEventById(params.id!, locals.user!.id);
+		const event = findEventById(params.id!, requireUser(locals).id);
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const pollId = String((await request.formData()).get('pollId') || '');

@@ -22,5 +22,12 @@ Host-Konten für die Event-Erstellung. Erster registrierter Nutzer wird automati
 ## 4. Berechtigungen & Schutz
 
 - PoW-Challenge (SHA-256) bei Registrierung gegen Bots ohne externe Captchas
-- Rate-Limiting pro IP auf Login und Registrierung
-- Identische Antworten bei existierenden und unbekannten E-Mail-Adressen (Anti-Enumeration)
+  (Single-Use: jede Lösung kann genau einmal eingelöst werden)
+- Rate-Limiting am Login: 5 Fehlversuche pro Konto in 15 Minuten, danach HTTP 429.
+  Bewusst **pro Konto, nicht pro IP** – bei einem Schulfest teilen sich alle Gäste
+  dieselbe öffentliche IP, ein IP-Limit würde die ganze Gruppe aussperren.
+  Registrierung ist durch die PoW-Challenge und die Admin-Einstellung
+  `registrationEnabled` begrenzt, ein IP-basiertes Limit existiert dort nicht.
+- Identische Antworten bei existierenden und unbekannten E-Mail-Adressen
+  (Anti-Enumeration) – sowohl im Login (Dummy-Argon2-Hash) als auch in der
+  Registrierung (generische Fehlermeldung + Dummy-Hash)

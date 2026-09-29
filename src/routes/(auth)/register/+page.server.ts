@@ -6,7 +6,7 @@ import {
 	findUserByEmail
 } from '$lib/server/db/repositories/user.repository';
 import { SettingsRepository } from '$lib/server/db/repositories/settings.repository';
-import { hashPassword } from '$lib/server/auth/password';
+import { hashPassword, verifyPassword } from '$lib/server/auth/password';
 import { generateRecoveryCodes } from '$lib/server/auth/recovery';
 import { createPoWChallenge, verifyPoWSolution } from '$lib/server/auth/pow';
 import { createSession, setSessionCookie } from '$lib/server/auth/session';
@@ -66,17 +66,30 @@ export const actions: Actions = {
 			});
 		}
 
-		// 2. Check if email is already taken
+		// 2. Check if email is already taken.
+		// Anti-enumeration: always perform the (expensive) Argon2 hash, even when the
+		// address is free, and answer with the same generic text in every failure
+		// case. Previously the existence check short-circuited before hashing, which
+		// leaked registered addresses both via the message and via a ~100x timing gap.
 		const existing = findUserByEmail(email);
+
+		const pwdHash = await hashPassword(password);
+		if (!existing) {
+			// Burn the same amount of work as the dummy path below for a taken address.
+			await verifyPassword(
+				'$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$P1d9P7J3uJvU1wFv3J0O9g',
+				password
+			);
+		}
+
 		if (existing) {
 			return fail(400, {
-				error: 'Diese E-Mail-Adresse ist bereits registriert.',
+				error: 'Registrierung nicht möglich. Bitte überprüfe deine Angaben.',
 				values: { email }
 			});
 		}
 
-		// 3. Hash password and generate 10 recovery codes
-		const pwdHash = await hashPassword(password);
+		// 3. Generate 10 recovery codes
 		const recoveryPairs = generateRecoveryCodes(10);
 		const recoveryCodeHashes = recoveryPairs.map((p) => p.codeHash);
 

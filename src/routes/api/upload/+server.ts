@@ -7,6 +7,7 @@ import {
 	registerGuest
 } from '$lib/server/db/repositories/guest.repository.js';
 import { SettingsRepository } from '$lib/server/db/repositories/settings.repository.js';
+import { MediaRepository } from '$lib/server/db/repositories/media.repository.js';
 
 const TUS_VERSION = '1.0.0';
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GiB
@@ -81,6 +82,17 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 
 	if (!uploaderGuestId) {
 		throw error(401, 'Unauthorized: please provide guest or host credentials to upload.');
+	}
+
+	// Enforce the per-event storage quota. Previously only the per-file limit was
+	// checked, so one guest could fill the server disk with many maximum-size files
+	// while the admin UI showed quotaPerEventMb as if it were active.
+	const quotaBytes = settings.quotaPerEventMb * 1024 * 1024;
+	if (quotaBytes > 0) {
+		const usedBytes = MediaRepository.sumOriginalSizeByEvent(eventId);
+		if (usedBytes + totalSize > quotaBytes) {
+			throw error(413, `Event storage quota exceeded (${settings.quotaPerEventMb} MB per event).`);
+		}
 	}
 
 	const session = TusServer.createUpload({

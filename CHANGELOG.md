@@ -4,6 +4,57 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ## [Unreleased]
 
+### Security
+
+Behobene Befunde aus dem externen Sicherheitsaudit:
+
+- **Umfragen-IDOR (HOCH):** `addPollOption` und `votePoll` prüfen jetzt, dass die
+  Umfrage zum Event des Aufrufers gehört. Vorher konnte ein Gast eines fremden
+  Events mit seiner eigenen Event-ID Umfragen anderer Events erweitern und
+  abstimmen – die fremd eingefügte Option wurde mit dem Event-Key des Angreifers
+  verschlüsselt und machte das Opfer-Event beim Laden dauerhaft unbenutzbar
+  (HTTP 500). Zusätzlich werden Options-IDs gegen die zugehörige Umfrage geprüft.
+- **TUS-Upload-Session (HOCH):** `PATCH`, `HEAD` und `DELETE` auf `/api/upload/[id]`
+  prüfen jetzt dieselbe Autorisierung wie `POST /api/upload` (Host-Session oder
+  Gast-Device-Token mit Besitzvergleich). Vorher konnte jeder, der die
+  Session-UUID kannte, fremde Uploads überschreiben oder abbrechen.
+- **Login-Rate-Limiting (HOCH):** 5 Fehlversuche pro Konto in 15 Minuten führen zu
+  HTTP 429. Das Limit gilt bewusst pro Konto und nicht pro IP, da bei einem
+  Schulfest alle Gäste dieselbe öffentliche IP teilen.
+- **Verschlüsselter Master-Key (HOCH):** Beim ersten Start ohne
+  `ENCRYPTION_PASSPHRASE` verweigert die App das Speichern des privaten
+  RSA-4096-Schlüssels im Klartext (Override: `ALLOW_UNENCRYPTED_MASTER_KEY=true`).
+  Bestehende Installationen mit vorhandenem Schlüssel sind nicht betroffen; der
+  Entrypoint warnt zusätzlich beim Start.
+- **Dokumentation (MITTEL):** `docs/features/auth.md`, `docs/features/admin.md` und
+  `docs/ARCHITECTURE.md` beschreiben jetzt den Ist-Stand. Zuvor versprachen sie
+  nicht vorhandene Features (IP-basiertes Rate-Limiting, CSP-Nonce, HSTS,
+  Anti-Enumeration in der Registrierung).
+- **SSE-Live-Feed (MITTEL):** `/api/events/[id]/sse` erfordert jetzt eine
+  Host-Session oder einen gültigen Gast-Token; der Hub begrenzt Verbindungen
+  (200 pro Event, 500 global) und lehnt Überlauf mit 503 ab.
+- **Speicher-Kontingent (MITTEL):** `quotaPerEventMb` wird beim Upload nun tatsächlich
+  geprüft (Summe der hochgeladenen Bytes je Event) statt nur im Admin-Formular
+  angezeigt zu werden.
+- **Proof-of-Work (MITTEL/NIEDRIG):** Lösungen sind jetzt Single-Use, eine
+  nicht-hex-signierte oder manipulierte Signatur führt zu `false` statt zu einem
+  HTTP 500, und `POW_SECRET` ist über die Umgebung stabilisierbar.
+- **Sessions (MITTEL/NIEDRIG):** Idle-Timeout von 7 Tagen, Token-Rotation beim
+  Login, `revokeAllSessions()`, und die `secure`-Flag des Session-Cookies wird aus
+  der Basis-URL statt aus `NODE_ENV` abgeleitet.
+- **Registrierung (NIEDRIG):** generische Fehlermeldung und Dummy-Argon2-Hash
+  beseitigen das User-Enumeration-Orakel (Meldung + Timing).
+- **Logout (NIEDRIG):** Die GET-Variante invalidiert die Session nicht mehr;
+  Logout erfolgt ausschließlich per POST (das UI-Formular war bereits POST).
+- **Caching & Header (NIEDRIG):** `Cache-Control: private, no-store` und
+  `Vary: Cookie` auf HTML-Antworten, HSTS nur bei HTTPS-Basis-URL.
+- **Startverhalten:** Fehlgeschlagene Krypto-/DB-Initialisierung beendet den
+  Server jetzt, statt halb initialisiert weiterzulaufen.
+- **Autorisierung:** `(app)`-Actions nutzen ein gemeinsames `requireUser()` und
+  liefern bei fehlender Session 401 statt 500; `tokenHash` verlässt den Server
+  nicht mehr; `findUserByEmail` fällt bei Entschlüsselungsfehlern nicht mehr auf
+  die Aufrufereingabe zurück.
+
 ### Fixed
 
 - CSRF-/Same-Origin-Konfiguration wird beim Containerstart aus der öffentlichen Basis-URL abgeleitet; schreibende Formulare funktionieren damit nach einem Deployment auch hinter einer konfigurierten öffentlichen URL.

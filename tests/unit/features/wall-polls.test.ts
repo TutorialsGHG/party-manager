@@ -86,10 +86,11 @@ describe('Wall Posts, Polls & SSE Realtime', () => {
 
 		// 2. Guest adds dynamic option
 		const newOpt = addPollOption(poll.id, eventId, 'HipHop Classics', guest1Id);
-		expect(newOpt.text).toBe('HipHop Classics');
+		expect(newOpt).not.toBeNull();
+		expect(newOpt!.text).toBe('HipHop Classics');
 
 		// 3. Guest 1 votes for 2 options
-		const voted = votePoll(poll.id, guest1Id, [poll.options[0].id, newOpt.id]);
+		const voted = votePoll(poll.id, guest1Id, [poll.options[0].id, newOpt!.id]);
 		expect(voted).toBe(true);
 
 		// 4. Guest 2 votes for 1 option
@@ -120,6 +121,8 @@ describe('Wall Posts, Polls & SSE Realtime', () => {
 		};
 
 		const unsubscribe = sseHub.addClient(eventId, mockController);
+		// addClient returns null when a connection limit is hit; here it must succeed.
+		expect(unsubscribe).not.toBeNull();
 		expect(sseHub.getActiveClientCount(eventId)).toBe(1);
 
 		// Broadcast test message
@@ -129,7 +132,7 @@ describe('Wall Posts, Polls & SSE Realtime', () => {
 		expect(messages[0]).toContain('Hello Live!');
 
 		// Cleanup
-		unsubscribe();
+		unsubscribe!();
 		expect(sseHub.getActiveClientCount(eventId)).toBe(0);
 	});
 });

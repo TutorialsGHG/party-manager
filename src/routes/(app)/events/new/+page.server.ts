@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { createEvent } from '$lib/server/db/repositories/event.repository';
 import { eventSchema } from '$lib/shared/schemas';
+import { requireUser } from '$lib/server/auth/require-user';
 
 export const load: PageServerLoad = async () => {
 	return {};
@@ -31,7 +32,7 @@ export const actions: Actions = {
 			maxCompanions
 		} = parseResult.data;
 
-		const event = createEvent(locals.user!.id, {
+		const event = createEvent(requireUser(locals).id, {
 			title,
 			description,
 			dateStart,

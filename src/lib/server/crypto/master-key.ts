@@ -80,6 +80,22 @@ export function initMasterKeys(): { publicKeyPem: string; hasPassphrase: boolean
 
 	fs.writeFileSync(pubKeyPath, publicKey, { mode: 0o644 });
 
+	if (!config.passphrase) {
+		// Storing the master key unencrypted removes the whole point of the
+		// envelope encryption: anyone who can read the /config volume (backup
+		// export, disk image, misconfigured volume mount) can decrypt every guest
+		// name, event and media file. Fail closed on first boot instead of
+		// silently degrading - existing installs keep their key and are not
+		// affected by this check.
+		if (process.env.ALLOW_UNENCRYPTED_MASTER_KEY !== 'true') {
+			throw new Error(
+				'ENCRYPTION_PASSPHRASE is not set. Refusing to store the master private key unencrypted.\n' +
+					'Generate one with: openssl rand -base64 32\n' +
+					'Set it in your .env file, or set ALLOW_UNENCRYPTED_MASTER_KEY=true to override explicitly.'
+			);
+		}
+	}
+
 	if (config.passphrase) {
 		const salt = crypto.randomBytes(16);
 		const iv = crypto.randomBytes(12);

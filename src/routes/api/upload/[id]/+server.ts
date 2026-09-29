@@ -1,6 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { TusServer } from '$lib/server/storage/tus.js';
+import { findEventById } from '$lib/server/db/repositories/event.repository.js';
+import { findGuestByDeviceToken } from '$lib/server/db/repositories/guest.repository.js';
+import type { TusUploadSession } from '$lib/server/storage/tus.js';
 
 const TUS_VERSION = '1.0.0';
 
@@ -17,11 +20,46 @@ export const OPTIONS: RequestHandler = async () => {
 	});
 };
 
-export const HEAD: RequestHandler = async ({ params }) => {
+/**
+ * Authorizes a request against an in-progress upload session.
+ *
+ * Mirrors the authorization of POST /api/upload: the acting party must either own
+ * the event (authenticated host) or be the guest who started the upload. Without
+ * this, anyone knowing the session UUID could hijack or abort someone else's upload.
+ * The session UUID is 122 bit random, but it is exposed via the Location header,
+ * browser history, proxy logs and Referer headers.
+ */
+function authorizeSession(
+	session: TusUploadSession,
+	locals: App.Locals,
+	cookies: import('@sveltejs/kit').Cookies,
+	headers: Headers
+): void {
+	// 1. Authenticated host that owns the event
+	if (locals.user) {
+		const hostEvent = findEventById(session.eventId, locals.user.id);
+		if (hostEvent) return;
+	}
+
+	// 2. The guest who created the session (device token via cookie or header,
+	//    same dual path as POST /api/upload for clients without a cookie jar)
+	const cookieName = `dev_tok_${session.eventId.slice(0, 8)}`;
+	const guestToken = headers.get('x-guest-token') || cookies.get(cookieName);
+	if (guestToken) {
+		const guest = findGuestByDeviceToken(session.eventId, guestToken);
+		if (guest && guest.id === session.uploaderGuestId) return;
+	}
+
+	throw error(401, 'Unauthorized: you are not the owner of this upload.');
+}
+
+export const HEAD: RequestHandler = async ({ params, locals, cookies, request }) => {
 	const session = TusServer.getUpload(params.id);
 	if (!session) {
 		throw error(404, 'Upload session not found.');
 	}
+
+	authorizeSession(session, locals, cookies, request.headers);
 
 	return new Response(null, {
 		status: 200,
@@ -35,11 +73,13 @@ export const HEAD: RequestHandler = async ({ params }) => {
 	});
 };
 
-export const PATCH: RequestHandler = async ({ request, params }) => {
+export const PATCH: RequestHandler = async ({ request, params, locals, cookies }) => {
 	const session = TusServer.getUpload(params.id);
 	if (!session) {
 		throw error(404, 'Upload session not found.');
 	}
+
+	authorizeSession(session, locals, cookies, request.headers);
 
 	const offsetHeader = request.headers.get('upload-offset');
 	if (offsetHeader === null) {
@@ -79,7 +119,15 @@ export const PATCH: RequestHandler = async ({ request, params }) => {
 	}
 };
 
-export const DELETE: RequestHandler = async ({ params }) => {
+export const DELETE: RequestHandler = async ({ params, locals, cookies, request }) => {
+	const session = TusServer.getUpload(params.id);
+	// Do not leak whether a session exists to unauthorized callers.
+	if (!session) {
+		throw error(404, 'Upload session not found.');
+	}
+
+	authorizeSession(session, locals, cookies, request.headers);
+
 	TusServer.cancelUpload(params.id);
 	return new Response(null, {
 		status: 204,

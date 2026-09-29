@@ -197,6 +197,17 @@ export class MediaRepository {
 	}
 
 	/**
+	 * Sums the original sizes of all media in an event.
+	 * Used to enforce settings.quotaPerEventMb, which was previously a dead config value.
+	 */
+	static sumOriginalSizeByEvent(eventId: string): number {
+		const row = getDb()
+			.prepare('SELECT COALESCE(SUM(original_size), 0) AS total FROM media WHERE event_id = ?')
+			.get(eventId) as { total: number };
+		return row?.total || 0;
+	}
+
+	/**
 	 * Lists all media items for an event.
 	 */
 	static listByEvent(eventId: string): MediaItem[] {

@@ -84,8 +84,22 @@ export function addPollOption(
 	eventId: string,
 	text: string,
 	guestId?: string
-): PollOptionData {
+): PollOptionData | null {
 	const db = getDb();
+
+	// Enforce that the poll actually belongs to the caller's event.
+	// Without this, a guest of event B could insert options into a poll of event A
+	// (IDOR). Those options would be encrypted with B's event key and therefore
+	// fail AES-GCM authentication when A's host loads the event -> permanent 500.
+	// Returning null (instead of throwing) keeps a bypassed caller from turning a
+	// rejected cross-event write into a 500 for the guest.
+	const pollRow = db
+		.prepare('SELECT id FROM polls WHERE id = ? AND event_id = ?')
+		.get(pollId, eventId) as { id: string } | undefined;
+	if (!pollRow) {
+		return null;
+	}
+
 	const ek = getEventKey(eventId);
 	const optId = crypto.randomUUID();
 	const textCipher = encryptText(text.trim(), ek, `poll_options:${optId}:text`);
@@ -111,11 +125,26 @@ export function addPollOption(
 	};
 }
 
-export function votePoll(pollId: string, guestId: string, optionIds: string[]): boolean {
+export function votePoll(
+	pollId: string,
+	guestId: string,
+	optionIds: string[],
+	eventId?: string
+): boolean {
 	const db = getDb();
+
+	// Enforce poll->event and guest->event binding. Without it a guest of event B
+	// could vote in a poll of event A (IDOR) and corrupt A's host-side tally.
 	const poll = db
-		.prepare('SELECT is_multiple, is_closed, deadline FROM polls WHERE id = ?')
-		.get(pollId) as any;
+		.prepare(
+			`
+      SELECT p.is_multiple, p.is_closed, p.deadline, p.event_id
+      FROM polls p
+      JOIN guests g ON g.id = ? AND g.event_id = p.event_id
+      WHERE p.id = ?${eventId ? ' AND p.event_id = ?' : ''}
+    `
+		)
+		.get(...(eventId ? [guestId, pollId, eventId] : [guestId, pollId])) as any;
 	if (!poll || poll.is_closed) return false;
 
 	if (poll.deadline && new Date(poll.deadline).getTime() < Date.now()) {
@@ -123,23 +152,41 @@ export function votePoll(pollId: string, guestId: string, optionIds: string[]): 
 	}
 
 	const tx = db.transaction(() => {
-		// 1. Remove previous votes by this guest for this poll
+		// Remove previous votes by this guest for this poll
 		db.prepare('DELETE FROM poll_votes WHERE poll_id = ? AND guest_id = ?').run(pollId, guestId);
 
-		// 2. Insert new votes
+		// 2. Insert new votes (options must belong to this poll - prevents cross-poll vote injection)
 		const targetOptionIds = poll.is_multiple ? optionIds : optionIds.slice(0, 1);
+		const validOptionIds = new Set(
+			(
+				db.prepare('SELECT id FROM poll_options WHERE poll_id = ?').all(pollId) as { id: string }[]
+			).map((o) => o.id)
+		);
 		const insertVote = db.prepare(`
       INSERT INTO poll_votes (id, poll_id, option_id, guest_id, created_at)
       VALUES (?, ?, ?, ?, ?)
     `);
 
 		for (const optId of targetOptionIds) {
+			if (!validOptionIds.has(optId)) continue;
 			insertVote.run(crypto.randomUUID(), pollId, optId, guestId, Date.now());
 		}
 	});
 
 	tx();
 	return true;
+}
+
+/**
+ * Returns true if the given poll belongs to the given event.
+ * Used to enforce the tenant boundary before guest-supplied pollIds are used.
+ */
+export function isPollInEvent(pollId: string, eventId: string): boolean {
+	if (!pollId || !eventId) return false;
+	const row = getDb()
+		.prepare('SELECT 1 AS ok FROM polls WHERE id = ? AND event_id = ?')
+		.get(pollId, eventId) as { ok: number } | undefined;
+	return !!row;
 }
 
 export function listPollsForEvent(eventId: string, currentGuestId?: string): PollData[] {
