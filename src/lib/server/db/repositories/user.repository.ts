@@ -84,12 +84,15 @@ export function findUserByEmail(email: string): { user: UserRecord; passwordHash
 
 	if (!row) return null;
 
-	let decryptedEmail = email;
+	// Never fall back to the caller-supplied address on a decrypt error: that would
+	// echo whatever the request claimed to be the stored value. Return an empty
+	// string instead so a key mismatch cannot be turned into a spoofed identity.
+	let decryptedEmail = '';
 	try {
 		const buf = decryptWithMasterKey(Buffer.from(row.email_cipher, 'base64'));
 		decryptedEmail = buf.toString('utf8');
 	} catch {
-		// Fallback if key mismatch
+		// Key mismatch - the stored value stays unavailable.
 	}
 
 	return {

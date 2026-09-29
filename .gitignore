@@ -27,3 +27,13 @@ test-results
 # Local volumes & data
 /data
 /config
+
+# Isolated test storage (unit + e2e)
+/.test-data
+/.test-config
+/.e2e-data
+/.e2e-config
+
+# Python bytecode from the verification scripts
+__pycache__/
+*.pyc

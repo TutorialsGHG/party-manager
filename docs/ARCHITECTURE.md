@@ -36,7 +36,12 @@ Die Einladungs-App ("Einladung") ist als Single-Container-Webanwendung konzipier
 ## 3. Datenfluss bei Anfragen
 
 1. Client sendet Request (z. B. `GET /e/:token`).
-2. SvelteKit `hooks.server.ts` prüft Rate-Limits und setzt Security-Header (CSP mit Nonce, HSTS, no-referrer).
+2. SvelteKit `hooks.server.ts` löst die Session auf und setzt Security-Header
+   (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy,
+   CSP ohne externe Hosts, HSTS nur bei HTTPS-Basis-URL, `Cache-Control: private,
+no-store` + `Vary: Cookie` auf HTML-Antworten). Rate-Limiting findet nicht im
+   Hook, sondern in den jeweiligen Actions statt (Login: pro Konto). Es wird kein
+   CSP-Nonce verwendet; die CSP enthält `unsafe-inline` für Scripts und Styles.
 3. Route ruft den entsprechenden Feature-Service auf.
 4. Feature-Service validiert Eingaben via Zod, autorisiert Zugriff und fragt das Repository ab.
 5. Repository holt verschlüsselte Zeilen aus SQLite und entschlüsselt vertrauliche Felder über `lib/server/crypto` mit dem im RAM gecachten Event-Key (EK).

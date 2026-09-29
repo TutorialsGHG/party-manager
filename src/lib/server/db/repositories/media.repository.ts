@@ -197,6 +197,74 @@ export class MediaRepository {
 	}
 
 	/**
+	 * Sums the sizes that actually occupy storage for an event.
+	 *
+	 * Only rows that reached a terminal state count: 'ready' and 'failed' media
+	 * exist on disk, while 'uploading' rows are created at POST /api/upload time
+	 * (before the first byte arrives) and 'queued'/'processing' rows are in flight.
+	 * Summing every row let a single guest reserve the whole quota by opening
+	 * upload sessions and never sending a chunk - there is no client-side path that
+	 * reliably sends the DELETE, and the process restart in TusServer.getUpload
+	 * means a resumed-but-abandoned session keeps its row forever.
+	 */
+	static sumOriginalSizeByEvent(eventId: string): number {
+		const row = getDb()
+			.prepare(
+				`SELECT COALESCE(SUM(original_size), 0) AS total
+         FROM media
+         WHERE event_id = ? AND status IN ('ready', 'failed')`
+			)
+			.get(eventId) as { total: number };
+		return row?.total || 0;
+	}
+
+	/**
+	 * Number of bytes currently reserved by in-flight uploads of an event.
+	 *
+	 * Counted on top of sumOriginalSizeByEvent so that concurrent uploads within
+	 * the quota are still bounded, without letting abandoned sessions block the
+	 * event permanently.
+	 */
+	static sumPendingSizeByEvent(eventId: string): number {
+		const row = getDb()
+			.prepare(
+				`SELECT COALESCE(SUM(original_size), 0) AS total
+         FROM media
+         WHERE event_id = ? AND status IN ('uploading', 'queued', 'processing')`
+			)
+			.get(eventId) as { total: number };
+		return row?.total || 0;
+	}
+
+	/**
+	 * Removes upload sessions that were never completed.
+	 *
+	 * An abandoned session keeps its media row (status 'uploading') plus its
+	 * temporary tail file on disk forever, because the DELETE path only runs when
+	 * a client cooperates. This sweeps rows older than the given age.
+	 *
+	 * @returns the number of removed media rows
+	 */
+	static cleanupAbandonedUploads(olderThanMs: number): number {
+		const db = getDb();
+		const cutoff = Date.now() - olderThanMs;
+
+		const stale = db
+			.prepare(
+				`SELECT id FROM media
+         WHERE status = 'uploading' AND created_at < ?`
+			)
+			.all(cutoff) as { id: string }[];
+
+		for (const row of stale) {
+			// deleteMedia also unlinks the partial blob and the temp tail.
+			MediaRepository.deleteMedia(row.id);
+		}
+
+		return stale.length;
+	}
+
+	/**
 	 * Lists all media items for an event.
 	 */
 	static listByEvent(eventId: string): MediaItem[] {

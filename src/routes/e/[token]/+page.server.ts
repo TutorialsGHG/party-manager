@@ -19,7 +19,8 @@ import {
 import {
 	listPollsForEvent,
 	votePoll,
-	addPollOption
+	addPollOption,
+	isPollInEvent
 } from '$lib/server/db/repositories/poll.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { rsvpSchema } from '$lib/shared/schemas';
@@ -268,7 +269,7 @@ export const actions: Actions = {
 		const pollId = String(formData.get('pollId') || '');
 		const optionIds = formData.getAll('optionId').map(String);
 
-		const success = votePoll(pollId, guest.id, optionIds);
+		const success = votePoll(pollId, guest.id, optionIds, event.id);
 		if (success) {
 			sseHub.broadcast(event.id, 'poll:vote', { pollId });
 		}
@@ -292,7 +293,17 @@ export const actions: Actions = {
 			return fail(400, { error: 'Ungültiger Optionstext.' });
 		}
 
+		// Reject polls from other events (IDOR: cross-event option injection).
+		// The repository enforces the same invariant, so a null result is handled
+		// here too rather than being dereferenced.
+		if (!isPollInEvent(pollId, event.id)) {
+			return fail(404, { error: 'Umfrage nicht gefunden.' });
+		}
+
 		const opt = addPollOption(pollId, event.id, text, guest.id);
+		if (!opt) {
+			return fail(404, { error: 'Umfrage nicht gefunden.' });
+		}
 		sseHub.broadcast(event.id, 'poll:update', { pollId });
 		return { success: true, opt };
 	}

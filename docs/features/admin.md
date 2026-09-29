@@ -15,4 +15,7 @@ Zentrale Steuerung für den Administrator (erster registrierter Nutzer).
 ## 3. Berechtigungen
 
 - Zugriff nur mit aktiver Admin-Session
-- Strenges CSRF- und Rate-Limiting
+- CSRF-Schutz durch SvelteKits `checkOrigin` (POST/PUT/PATCH/DELETE mit fremdem
+  Origin werden mit 403 abgewiesen)
+- Kein IP-basiertes Rate-Limiting im Admin-Bereich. Das Login ist pro Konto
+  gedrosselt (siehe `docs/features/auth.md`), Admin-Actions sind es nicht.
