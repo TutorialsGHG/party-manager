@@ -23,6 +23,15 @@ Upload, verschlüsselte Speicherung, Transcoding und Anzeige von Fotos und Video
   zählen bewusst **nicht** mit und werden nach 24 Stunden per TTL-Cleanup entfernt
   (beim Start und danach täglich) – sonst könnte ein Gast das Kontingent eines
   Events blockieren, indem er Sessions eröffnet und nie Daten sendet.
+- Das Kontingent wird aus der **deklarierten** `Upload-Length` berechnet, weil
+  `media.original_size` die Anmeldung ist. Deshalb erzwingt `PATCH /api/upload/[id]`
+  diese Länge: ein Chunk, der den verbleibenden deklarierten Bereich überschreitet,
+  wird mit HTTP 413 abgelehnt, bevor Daten geschrieben werden. Ohne diese Prüfung
+  könnte ein Gast klein ankündigen und bis zum Body-Limit der Laufzeit
+  (`BODY_SIZE_LIMIT`, 512 KB bare Metal / 2 MB im Image) senden, während die Quota
+  weiterhin nur die kleine Anmeldung bilanziert.
+- Geprüft über `scripts/verify-quota-overshoot.py` (Kontrollfall + Overshoot-Versuch,
+  Vorher/Nachher gegen den gefixten Build lauffähig).
 
 ## 4. Lightbox & UX
 

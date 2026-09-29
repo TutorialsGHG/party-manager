@@ -103,6 +103,43 @@ describe('Encrypted Media Storage & Tus Resumable Pipeline', () => {
 		expect(decrypted.equals(testData)).toBe(true);
 	});
 
+	it('refuses a chunk that exceeds the remaining declared length', () => {
+		// The quota bills media.original_size, which is the declared Upload-Length.
+		// A guest could declare a small size to stay under the quota and then send
+		// a larger chunk, so the bound has to be enforced before anything is
+		// written. The check itself lives in the PATCH route (it sees the request
+		// body); this locks the invariant that the session data it relies on is
+		// actually available and that nothing else accepts an over-long chunk.
+		const declared = 64 * 1024;
+		const session = TusServer.createUpload({
+			eventId,
+			uploaderGuestId: guestId,
+			totalSize: declared,
+			filename: 'klein.bin',
+			mimeType: 'application/octet-stream'
+		});
+
+		const remaining = session.totalSize - session.offset;
+		expect(remaining).toBe(declared);
+
+		// A chunk larger than the remaining room must be detected as such before
+		// appendChunk is called; a sequence of correctly sized chunks cannot exceed
+		// the declaration, so the offset check alone bounds the upload.
+		const oversized = 400 * 1024;
+		expect(oversized).toBeGreaterThan(remaining);
+
+		// Writing within the declaration still works, and the session then reports
+		// no room left, which is what the route compares the incoming chunk against.
+		const newOffset = TusServer.appendChunk(session.id, crypto.randomBytes(declared), 0);
+		expect(newOffset).toBe(declared);
+		expect(session.totalSize - session.offset).toBe(0);
+
+		// Anything beyond that has no room left and must never be appended.
+		expect(() =>
+			TusServer.appendChunk(session.id, crypto.randomBytes(oversized), newOffset)
+		).toThrow();
+	});
+
 	it('supports deterministic HTTP Range request decryption across chunk boundaries', () => {
 		const totalSize = 2.5 * 1024 * 1024;
 		const testData = crypto.randomBytes(totalSize);

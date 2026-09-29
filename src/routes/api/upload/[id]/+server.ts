@@ -102,6 +102,20 @@ export const PATCH: RequestHandler = async ({ request, params, locals, cookies }
 	const rawArrayBuffer = await request.arrayBuffer();
 	const chunk = Buffer.from(rawArrayBuffer);
 
+	// The declared Upload-Length is what the quota is billed from
+	// (MediaRepository sums media.original_size, which is the declaration), so an
+	// oversized chunk would let a guest store far more than the quota counts.
+	// appendUploadChunk() writes the incoming buffer unconditionally, so the bound
+	// has to be enforced here, before the write.
+	const remaining = session.totalSize - session.offset;
+	if (chunk.length > remaining) {
+		throw error(
+			413,
+			`Chunk exceeds the declared upload length. Declared: ${session.totalSize} B, ` +
+				`already received: ${session.offset} B, chunk: ${chunk.length} B.`
+		);
+	}
+
 	try {
 		const newOffset = TusServer.appendChunk(params.id, chunk, clientOffset);
 

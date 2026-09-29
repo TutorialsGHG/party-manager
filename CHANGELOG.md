@@ -54,6 +54,15 @@ Behobene Befunde aus dem externen Sicherheitsaudit:
   übertragen werden, räumt ein TTL-Cleanup (24 h) beim Start und täglich ab.
   Andernfalls konnte ein Gast das gesamte Kontingent durch bloßes Eröffnen von
   Upload-Sessions blockieren.
+- **Speicher-Kontingent umgehbar (HOCH, im Review gefunden):** das Kontingent wird
+  aus der *deklarierten* `Upload-Length` berechnet, und der PATCH-Pfad hat diese
+  Länge nicht erzwungen – ein Gast konnte eine kleine Datei ankündigen (damit die
+  Quota greift) und anschließend bis zum Body-Limit der Laufzeit (512 KB bare
+  Metal, `BODY_SIZE_LIMIT` im Docker-Image) größere Chunks senden. `appendUploadChunk`
+  schrieb den Puffer ungeprüft, sodass auf der Platte bis zu 6,25× der angemeldeten
+  Bytes landeten, während die Quota nur die Anmeldung bilanzierte. PATCH lehnt
+  Chunks, die den verbleibenden deklarierten Bereich überschreiten, jetzt mit 413 ab.
+  Reproduzierbar über `scripts/verify-quota-overshoot.py`.
 - **Registrierung (NIEDRIG):** generische Fehlermeldung und Dummy-Argon2-Hash
   beseitigen das User-Enumeration-Orakel (Meldung + Timing). Der Timing-Ausgleich
   wurde im Review explizit gemacht: beide Zweige kosten genau eine Argon2id-Operation,
