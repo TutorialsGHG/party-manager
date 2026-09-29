@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { findUserByEmail } from '$lib/server/db/repositories/user.repository';
-import { verifyPassword } from '$lib/server/auth/password';
+import { verifyPassword, DUMMY_ARGON2_HASH } from '$lib/server/auth/password';
 import {
 	createSession,
 	deleteSession,
@@ -51,11 +51,9 @@ export const actions: Actions = {
 		// Look up user
 		const userRecord = findUserByEmail(email);
 		if (!userRecord || !userRecord.user.isActive) {
-			// Anti-enumeration: verify dummy password to prevent timing attacks
-			await verifyPassword(
-				'$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHQ$P1d9P7J3uJvU1wFv3J0O9g',
-				password
-			);
+			// Anti-enumeration: verify against the dummy hash so an unknown address
+			// costs the same Argon2id work as a wrong password on a real account.
+			await verifyPassword(DUMMY_ARGON2_HASH, password);
 			recordLoginFailure(email);
 			return fail(400, {
 				error: 'Ungültige E-Mail-Adresse oder falsches Passwort.',

@@ -22,7 +22,9 @@ import subprocess
 PORT = 4509
 BASE = f"http://127.0.0.1:{PORT}"
 WD = "/tmp/verify-idor-py"
-REPO = "/home/hermes/workspace/party-manager"
+# Resolve the repo from this file's own location so the check runs on any checkout.
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BUILD = os.path.join(REPO, "build", "index.js")
 
 passed = 0
 failed = 0
@@ -59,9 +61,18 @@ def health_up():
 def main():
     global passed, failed
 
+    # Only free a leftover server that is *our* build on *our* port. A broad
+    # `pgrep -f 'node .*build/index.js'` would kill unrelated Node processes.
     for pid in subprocess.run(
-        ["pgrep", "-f", r"node .*build/index\.js"], capture_output=True, text=True
+        ["pgrep", "-f", re.escape(f"node {BUILD}")], capture_output=True, text=True
     ).stdout.split():
+        try:
+            with open(f"/proc/{int(pid)}/environ", "rb") as fh:
+                environ = fh.read().decode(errors="replace")
+        except Exception:
+            continue
+        if f"PORT={PORT}" not in environ:
+            continue
         try:
             os.kill(int(pid), 15)
         except Exception:
@@ -73,7 +84,7 @@ def main():
     env = dict(os.environ, PORT=str(PORT), ORIGIN=BASE, BASE_URL=BASE,
                ENCRYPTION_PASSPHRASE="idor-py-pass")
     log = open("/tmp/verify-idor-py.log", "w")
-    proc = subprocess.Popen(["node", f"{REPO}/build/index.js"], cwd=WD, env=env, stdout=log, stderr=log)
+    proc = subprocess.Popen(["node", BUILD], cwd=WD, env=env, stdout=log, stderr=log)
 
     try:
         if not health_up():

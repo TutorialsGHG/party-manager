@@ -3,16 +3,6 @@ import type { Cookies } from '@sveltejs/kit';
 import { getDb } from '../db/client';
 import { config } from '../config/env';
 
-export const SESSION_COOKIE_NAME = config.isProduction ? '__Host-session' : 'session';
-export const SESSION_DURATION_DAYS = 30;
-export const SESSION_IDLE_DAYS = 7;
-
-export interface SessionUser {
-	id: string;
-	role: string;
-	isActive: boolean;
-}
-
 /**
  * Whether cookies must carry the `secure` flag.
  *
@@ -21,13 +11,39 @@ export interface SessionUser {
  * `secure: false` and shipped session tokens in cleartext over plain HTTP. The
  * transport that actually serves the app is the right source of truth.
  */
-const isHttps = (): boolean => {
+export const isHttpsBaseUrl = (baseUrl: string): boolean => {
 	try {
-		return new URL(config.baseUrl).protocol === 'https:';
+		return new URL(baseUrl).protocol === 'https:';
 	} catch {
 		return false;
 	}
 };
+
+const isHttps = (): boolean => isHttpsBaseUrl(config.baseUrl);
+
+/**
+ * Cookie name for a given transport.
+ *
+ * The `__Host-` prefix is spec-mandated to be `Secure` and `Path=/` with no
+ * `Domain`, so it may only be used when the app is actually served over TLS.
+ * Deriving the name from NODE_ENV (as this did before) desynchronised it from
+ * the `secure` flag: a bare-metal deploy with NODE_ENV=production but an http
+ * BASE_URL produced a `__Host-` cookie *without* the mandatory Secure flag,
+ * which browsers reject outright - every login silently failed. Name and flag
+ * now come from the same source of truth, so this is a pure function of the
+ * transport rather than a module-level constant that can drift.
+ */
+export const sessionCookieName = (https: boolean): string => (https ? '__Host-session' : 'session');
+
+export const SESSION_COOKIE_NAME = sessionCookieName(isHttps());
+export const SESSION_DURATION_DAYS = 30;
+export const SESSION_IDLE_DAYS = 7;
+
+export interface SessionUser {
+	id: string;
+	role: string;
+	isActive: boolean;
+}
 
 export function hashToken(token: string): string {
 	return crypto.createHash('sha256').update(token).digest('hex');
@@ -117,20 +133,6 @@ export function deleteSession(token: string) {
 	if (!token) return;
 	const tokenHash = hashToken(token);
 	getDb().prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
-}
-
-/**
- * Revokes every session of a user, optionally keeping the current one alive.
- * Used for the "log out all devices" action and for password changes.
- */
-export function revokeAllSessions(userId: string, keepToken?: string): number {
-	const db = getDb();
-	if (keepToken) {
-		return db
-			.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?')
-			.run(userId, hashToken(keepToken)).changes;
-	}
-	return db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId).changes;
 }
 
 /**

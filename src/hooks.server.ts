@@ -3,6 +3,7 @@ import { runMigrations } from '$lib/server/db/migrate';
 import { initMasterKeys } from '$lib/server/crypto/master-key';
 import { validateSession, SESSION_COOKIE_NAME } from '$lib/server/auth/session';
 import { config } from '$lib/server/config/env';
+import { MediaRepository } from '$lib/server/db/repositories/media.repository';
 
 // Run migrations and crypto init on server boot.
 // Fail closed: a half-initialized instance (master key unusable, schema missing)
@@ -15,6 +16,32 @@ try {
 	console.error('FATAL: initialization failed, refusing to start:', err);
 	process.exit(1);
 }
+
+/**
+ * Abandoned upload sessions keep their media row and a temp tail file forever,
+ * because the DELETE path only runs when a client cooperates (tab closed, network
+ * drop, reload). Sweep them at boot and once a day afterwards: a guest must not be
+ * able to exhaust the per-event quota by opening sessions and never uploading.
+ */
+const ABANDONED_UPLOAD_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+function sweepAbandonedUploads(): void {
+	try {
+		const removed = MediaRepository.cleanupAbandonedUploads(ABANDONED_UPLOAD_MAX_AGE_MS);
+		if (removed > 0) {
+			console.log(`Cleaned up ${removed} abandoned upload session(s)`);
+		}
+	} catch (err) {
+		// Never let a maintenance task take the server down.
+		console.error('Abandoned upload cleanup failed:', err);
+	}
+}
+
+sweepAbandonedUploads();
+const cleanupTimer = setInterval(sweepAbandonedUploads, CLEANUP_INTERVAL_MS);
+// Do not keep the event loop alive just for the cleanup job.
+cleanupTimer.unref?.();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// 1. Session resolution

@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { getDb } from '../../../src/lib/server/db/client';
 import { runMigrations } from '../../../src/lib/server/db/migrate';
 import { createEvent } from '../../../src/lib/server/db/repositories/event.repository';
 import { registerGuest } from '../../../src/lib/server/db/repositories/guest.repository';
+import { MediaRepository } from '../../../src/lib/server/db/repositories/media.repository';
 import {
 	createPoll,
 	addPollOption,
@@ -14,6 +15,7 @@ import {
 import { createUser } from '../../../src/lib/server/db/repositories/user.repository';
 import { hashPassword } from '../../../src/lib/server/auth/password';
 import { generateRecoveryCodes } from '../../../src/lib/server/auth/recovery';
+import { isHttpsBaseUrl, sessionCookieName } from '../../../src/lib/server/auth/session';
 import {
 	checkLoginRateLimit,
 	recordLoginFailure,
@@ -29,6 +31,11 @@ import { createPoWChallenge, verifyPoWSolution } from '../../../src/lib/server/a
  * DYN-01 Login throttling is enforced per account.
  * DYN-06 A proof-of-work solution may be redeemed only once.
  * DYN-07 A non-hex PoW signature must return false, never throw.
+ * DYN-09 The session cookie name and its Secure flag must derive from the same
+ *        source of truth, or a `__Host-` cookie is emitted without Secure and the
+ *        browser silently discards it (every login fails).
+ * DYN-10 The per-event storage quota must not be exhaustible by opening upload
+ *        sessions that are never completed.
  */
 describe('Security Audit Regression Tests', () => {
 	let eventAId = '';
@@ -245,6 +252,138 @@ describe('Security Audit Regression Tests', () => {
 			expect(
 				verifyPoWSolution(challenge.challenge, '0', 0, challenge.expiresAt, challenge.signature)
 			).toBe(false);
+		});
+	});
+
+	describe('DYN-09: session cookie name and Secure flag agree', () => {
+		it('detects the transport from the base URL', () => {
+			expect(isHttpsBaseUrl('https://party.example.com')).toBe(true);
+			expect(isHttpsBaseUrl('http://party.example.com')).toBe(false);
+			expect(isHttpsBaseUrl('not-a-url')).toBe(false);
+		});
+
+		it('only uses the __Host- prefix when the transport is HTTPS', () => {
+			// The prefix mandates Secure. Emitting it over plain HTTP makes the
+			// browser discard the cookie, so every login fails silently.
+			expect(sessionCookieName(true)).toBe('__Host-session');
+			expect(sessionCookieName(false)).toBe('session');
+		});
+
+		it('never pairs the __Host- prefix with a non-secure transport', () => {
+			// The invariant under test: name and flag come from one decision.
+			// NODE_ENV must not influence the name at all - a bare-metal deploy
+			// with NODE_ENV=production and an http BASE_URL used to produce
+			// `__Host-session` without the mandatory Secure flag.
+			for (const baseUrl of [
+				'http://localhost:3000',
+				'https://localhost:3000',
+				'http://192.168.1.50:3000',
+				'https://sub.domain.example'
+			]) {
+				const https = isHttpsBaseUrl(baseUrl);
+				expect(sessionCookieName(https).startsWith('__Host-')).toBe(https);
+			}
+		});
+	});
+
+	describe('DYN-10: per-event storage quota', () => {
+		function makePendingEvent(): { eventId: string; guestId: string } {
+			const host = createUser(`quota-${Date.now()}-${Math.random()}@party.local`, 'x', []).user;
+			const eventId = createEvent(host.id, {
+				title: 'Quota Event',
+				dateStart: '2026-09-01T18:00:00.000Z'
+			}).id;
+			const guestId = registerGuest(eventId, `tok-quota-${Math.random()}`, 'Quota Gast').id;
+			return { eventId, guestId };
+		}
+
+		function addMedia(
+			eventId: string,
+			guestId: string,
+			size: number,
+			status: 'uploading' | 'ready' | 'failed'
+		): string {
+			const id = randomUUID();
+			MediaRepository.createPendingMedia({
+				id,
+				eventId,
+				uploaderGuestId: guestId,
+				mimeType: 'image/jpeg',
+				originalSize: size,
+				originalFilename: `${id}.jpg`,
+				fileKey: randomBytes(32),
+				salt: randomBytes(8)
+			});
+			if (status !== 'uploading') {
+				MediaRepository.updateStatus(id, status);
+			}
+			return id;
+		}
+
+		it('does not count abandoned uploading sessions against the quota', () => {
+			const { eventId, guestId } = makePendingEvent();
+			const MB = 1024 * 1024;
+
+			addMedia(eventId, guestId, 4000 * MB, 'uploading');
+
+			// A guest that opened sessions and never sent a byte must not be able
+			// to reserve the event's whole quota.
+			expect(MediaRepository.sumOriginalSizeByEvent(eventId)).toBe(0);
+		});
+
+		it('counts completed media against the quota', () => {
+			const { eventId, guestId } = makePendingEvent();
+			const MB = 1024 * 1024;
+
+			addMedia(eventId, guestId, 10 * MB, 'ready');
+			addMedia(eventId, guestId, 5 * MB, 'failed');
+
+			expect(MediaRepository.sumOriginalSizeByEvent(eventId)).toBe(15 * MB);
+		});
+
+		it('still counts in-flight uploads so parallel sessions stay bounded', () => {
+			const { eventId, guestId } = makePendingEvent();
+			const MB = 1024 * 1024;
+
+			addMedia(eventId, guestId, 10 * MB, 'uploading');
+			addMedia(eventId, guestId, 20 * MB, 'ready');
+
+			expect(MediaRepository.sumPendingSizeByEvent(eventId)).toBe(10 * MB);
+			expect(MediaRepository.sumOriginalSizeByEvent(eventId)).toBe(20 * MB);
+		});
+
+		it('cleans up abandoned uploads older than the given age', () => {
+			const { eventId, guestId } = makePendingEvent();
+
+			const staleId = addMedia(eventId, guestId, 1, 'uploading');
+			const freshId = addMedia(eventId, guestId, 1, 'uploading');
+
+			// Backdate only the first row past the TTL.
+			getDb()
+				.prepare('UPDATE media SET created_at = ? WHERE id = ?')
+				.run(Date.now() - 48 * 60 * 60 * 1000, staleId);
+
+			const removed = MediaRepository.cleanupAbandonedUploads(24 * 60 * 60 * 1000);
+			expect(removed).toBeGreaterThanOrEqual(1);
+
+			const remaining = getDb()
+				.prepare('SELECT id FROM media WHERE id IN (?, ?)')
+				.all(staleId, freshId) as { id: string }[];
+			expect(remaining.map((r) => r.id)).not.toContain(staleId);
+			expect(remaining.map((r) => r.id)).toContain(freshId);
+		});
+
+		it('never removes completed media during cleanup', () => {
+			const { eventId, guestId } = makePendingEvent();
+			const readyId = addMedia(eventId, guestId, 1, 'ready');
+			getDb()
+				.prepare('UPDATE media SET created_at = ? WHERE id = ?')
+				.run(Date.now() - 48 * 60 * 60 * 1000, readyId);
+
+			MediaRepository.cleanupAbandonedUploads(24 * 60 * 60 * 1000);
+
+			const row = getDb().prepare('SELECT id FROM media WHERE id = ?').get(readyId);
+			expect(row).toBeDefined();
 		});
 	});
 });

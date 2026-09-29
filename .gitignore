@@ -33,3 +33,7 @@ test-results
 /.test-config
 /.e2e-data
 /.e2e-config
+
+# Python bytecode from the verification scripts
+__pycache__/
+*.pyc

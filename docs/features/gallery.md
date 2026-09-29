@@ -11,9 +11,18 @@ Upload, verschlüsselte Speicherung, Transcoding und Anzeige von Fotos und Video
 ## 3. Upload & Verarbeitung
 
 - tus Resumable Upload Protokoll mit Chunk-Verschlüsselung (AES-256-GCM)
+- Autorisierung für `POST`, `HEAD`, `PATCH` und `DELETE`: nur der Host des Events
+  oder der Gast, der die Session eröffnet hat (Device-Token über Cookie oder
+  `X-Guest-Token`). Die Session-UUID allein gewährt keinen Zugriff.
 - Magic-Byte-Prüfung (JPEG, PNG, WebP, HEIC/HEIF, MP4, MOV, WebM)
 - Queue: `sharp` für Thumbnails/Blurhash (EXIF-Entfernung), `ffmpeg` für H.264/AAC Transcoding
 - Originale bleiben verschlüsselt gespeichert und sind herunterladbar
+- Speicher-Kontingent `quotaPerEventMb` wird bei `POST /api/upload` geprüft. Gezählt
+  werden abgeschlossene Medien (`ready`/`failed`) sowie die gerade laufenden
+  Uploads, damit parallele Uploads begrenzt bleiben. Verwaiste `uploading`-Sessions
+  zählen bewusst **nicht** mit und werden nach 24 Stunden per TTL-Cleanup entfernt
+  (beim Start und danach täglich) – sonst könnte ein Gast das Kontingent eines
+  Events blockieren, indem er Sessions eröffnet und nie Daten sendet.
 
 ## 4. Lightbox & UX
 

@@ -87,10 +87,24 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	// Enforce the per-event storage quota. Previously only the per-file limit was
 	// checked, so one guest could fill the server disk with many maximum-size files
 	// while the admin UI showed quotaPerEventMb as if it were active.
+	//
+	// Counted: media that reached a terminal state ('ready'/'failed', i.e. bytes on
+	// disk) plus the sizes currently reserved by in-flight uploads, so parallel
+	// uploads are still bounded. Deliberately NOT counted: abandoned 'uploading'
+	// sessions - a guest could otherwise burn the entire quota by opening sessions
+	// and never sending a chunk. MediaRepository.cleanupAbandonedUploads() sweeps
+	// those on a TTL.
+	//
+	// Known limitation: this read-then-write is not atomic, so N simultaneous POSTs
+	// for the same event each observe the same total. Every session is bounded by
+	// maxUploadSizeMb on its own, so the overshoot is at most
+	// (concurrentRequests - 1) * maxUploadSizeMb. SQLite writes are serialized and
+	// the per-file cap keeps that acceptable for a self-hosted instance.
 	const quotaBytes = settings.quotaPerEventMb * 1024 * 1024;
 	if (quotaBytes > 0) {
-		const usedBytes = MediaRepository.sumOriginalSizeByEvent(eventId);
-		if (usedBytes + totalSize > quotaBytes) {
+		const committedBytes = MediaRepository.sumOriginalSizeByEvent(eventId);
+		const pendingBytes = MediaRepository.sumPendingSizeByEvent(eventId);
+		if (committedBytes + pendingBytes + totalSize > quotaBytes) {
 			throw error(413, `Event storage quota exceeded (${settings.quotaPerEventMb} MB per event).`);
 		}
 	}

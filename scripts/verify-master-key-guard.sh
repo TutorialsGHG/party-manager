@@ -4,14 +4,23 @@
 #   2. Fresh install WITH passphrase     -> must start and write an encrypted key
 #   3. Existing unencrypted key          -> must still start (no breakage for current users)
 set -u
-cd /home/hermes/workspace/party-manager
 
-# Never let a leftover server from a previous run answer our health check on the
-# same port, which would make these assertions pass or fail for the wrong reason.
-# Scoped to node processes only, and this script's own PID is never matched.
-for pid in $(pgrep -f 'node .*build/index\.js' 2>/dev/null || true); do
-  [ "$pid" = "$$" ] && continue
-  kill "$pid" 2>/dev/null || true
+# Resolve the repo from this script's own location so the checks run on any
+# checkout, not just the machine that wrote them.
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO"
+BUILD="$REPO/build/index.js"
+
+# Free our own ports from leftovers of a previous run, so a stray server cannot
+# answer our health check and make the assertions pass or fail for the wrong
+# reason. Scoped to the exact build path and the ports we use below - a broad
+# `pgrep -f node` would kill unrelated processes.
+for port in 4401 4402 4403 4404; do
+  for pid in $(pgrep -f "node $BUILD" 2>/dev/null || true); do
+    if tr '\0' ' ' < "/proc/$pid/environ" 2>/dev/null | grep -q "PORT=$port"; then
+      kill "$pid" 2>/dev/null || true
+    fi
+  done
 done
 sleep 1
 
@@ -23,7 +32,7 @@ start_server() { # $1=workdir name, $2=port, rest = env assignments
   local wd="verify-$1"; local port="$2"; shift 2
   rm -rf "/tmp/$wd"; mkdir -p "/tmp/$wd"
   ( cd /tmp/$wd && env PORT="$port" ORIGIN="http://127.0.0.1:$port" BASE_URL="http://127.0.0.1:$port" \
-      "$@" node /home/hermes/workspace/party-manager/build/index.js > "/tmp/$wd.log" 2>&1 &
+      "$@" node "$BUILD" > "/tmp/$wd.log" 2>&1 &
     echo $! > "/tmp/$wd.pid" )
   for _ in $(seq 1 40); do
     if curl -sf "http://127.0.0.1:$port/api/health" >/dev/null 2>&1; then sleep 0.5; return 0; fi
@@ -75,7 +84,7 @@ echo "=== 3. Existing UNENCRYPTED key, no passphrase (must keep working) ==="
 rm -rf /tmp/verify-legacy; mkdir -p /tmp/verify-legacy/config/keys/events /tmp/verify-legacy/data/blobs
 # Boot once with the explicit override to create a legacy-style unencrypted install.
 ( cd /tmp/verify-legacy && env PORT=4403 ORIGIN="http://127.0.0.1:4403" BASE_URL="http://127.0.0.1:4403" \
-    ALLOW_UNENCRYPTED_MASTER_KEY=true node /home/hermes/workspace/party-manager/build/index.js > /tmp/verify-legacy-boot.log 2>&1 &
+    ALLOW_UNENCRYPTED_MASTER_KEY=true node "$BUILD" > /tmp/verify-legacy-boot.log 2>&1 &
   echo $! > /tmp/verify-legacy.pid )
 for _ in $(seq 1 40); do
   if curl -sf "http://127.0.0.1:4403/api/health" >/dev/null 2>&1; then break; fi
@@ -88,7 +97,7 @@ if [ -f /tmp/verify-legacy/config/keys/master_priv.pem ]; then
   ok "override produced a legacy unencrypted key"
   # Restart WITHOUT the override: the existing key must still be accepted.
   ( cd /tmp/verify-legacy && env PORT=4404 ORIGIN="http://127.0.0.1:4404" BASE_URL="http://127.0.0.1:4404" \
-      node /home/hermes/workspace/party-manager/build/index.js > /tmp/verify-legacy2.log 2>&1 &
+      node "$BUILD" > /tmp/verify-legacy2.log 2>&1 &
     echo $! > /tmp/verify-legacy2.pid )
   started=1
   for _ in $(seq 1 40); do

@@ -40,10 +40,25 @@ Behobene Befunde aus dem externen Sicherheitsaudit:
   nicht-hex-signierte oder manipulierte Signatur führt zu `false` statt zu einem
   HTTP 500, und `POW_SECRET` ist über die Umgebung stabilisierbar.
 - **Sessions (MITTEL/NIEDRIG):** Idle-Timeout von 7 Tagen, Token-Rotation beim
-  Login, `revokeAllSessions()`, und die `secure`-Flag des Session-Cookies wird aus
-  der Basis-URL statt aus `NODE_ENV` abgeleitet.
+  Login, und die `secure`-Flag des Session-Cookies wird aus der Basis-URL statt
+  aus `NODE_ENV` abgeleitet.
+- **Session-Cookie (HOCH, im Review gefunden):** Cookie-Name und `secure`-Flag
+  werden jetzt aus derselben Quelle abgeleitet. Vorherhing der Name von
+  `NODE_ENV`, das Flag von der Basis-URL: ein Bare-Metal-Deployment mit
+  `NODE_ENV=production` und HTTP-`BASE_URL` setzte einen `__Host-session`-Cookie
+  **ohne** das vorgeschriebene `Secure`-Flag, den ein Browser verwirft – jeder
+  Login schlug still fehl. Der `__Host-`-Prefix wird nur noch bei HTTPS verwendet.
+- **Speicher-Kontingent (MITTEL, im Review nachgeschärft):** verwaister
+  Upload-Sessions zählen nicht mehr gegen `quotaPerEventMb`; gezählt werden
+  abgeschlossene Medien plus laufende Uploads. Sessions, die nie zu Ende
+  übertragen werden, räumt ein TTL-Cleanup (24 h) beim Start und täglich ab.
+  Andernfalls konnte ein Gast das gesamte Kontingent durch bloßes Eröffnen von
+  Upload-Sessions blockieren.
 - **Registrierung (NIEDRIG):** generische Fehlermeldung und Dummy-Argon2-Hash
-  beseitigen das User-Enumeration-Orakel (Meldung + Timing).
+  beseitigen das User-Enumeration-Orakel (Meldung + Timing). Der Timing-Ausgleich
+  wurde im Review explizit gemacht: beide Zweige kosten genau eine Argon2id-Operation,
+  und der Dummy-Hash liegt als `DUMMY_ARGON2_HASH` neben den echten Parametern, damit
+  ein Parameterwechsel den Schutz nicht unbemerkt auflöst.
 - **Logout (NIEDRIG):** Die GET-Variante invalidiert die Session nicht mehr;
   Logout erfolgt ausschließlich per POST (das UI-Formular war bereits POST).
 - **Caching & Header (NIEDRIG):** `Cache-Control: private, no-store` und
@@ -57,6 +72,7 @@ Behobene Befunde aus dem externen Sicherheitsaudit:
 
 ### Fixed
 
+- Die Verify-Skripte unter `scripts/` (`verify-master-key-guard.sh`, `verify-live-fixes.sh`, `verify-poll-idor.py`) leiten das Repository aus ihrem eigenen Pfad ab und töten nur noch Server-Prozesse, die zum geprüften Build **und** zum geprüften Port gehören. Vorher killte `pgrep -f 'node .*build/index\.js'` jeden passenden Node-Prozess, und die absoluten Pfade liefen außerhalb des Entwicklerrechners nicht.
 - CSRF-/Same-Origin-Konfiguration wird beim Containerstart aus der öffentlichen Basis-URL abgeleitet; schreibende Formulare funktionieren damit nach einem Deployment auch hinter einer konfigurierten öffentlichen URL.
 - Tus-Uploads bleiben unter dem Request-Limit und verwenden die persistierenden Docker-Volumes für Datenbank, Blobs, temporäre Mediendateien und Schlüssel.
 - Die RSVP-Zusagen zeigen überall die tatsächliche Gästezahl einschließlich Begleitpersonen; der Begleitpersonen-Zähler ist ausschließlich über Plus/Minus bedienbar.

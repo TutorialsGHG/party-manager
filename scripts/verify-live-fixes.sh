@@ -5,7 +5,11 @@
 #   2. Can a stranger hijack a LIVE upload session? (The earlier test completed
 #      the upload first, so the session was already gone -> 404, not 401.)
 set -u
-cd /home/hermes/workspace/party-manager
+
+# Resolve the repo from this script's own location so the checks run on any checkout.
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO"
+BUILD="$REPO/build/index.js"
 
 PORT=4506
 WD=/tmp/verify-live2
@@ -14,14 +18,18 @@ PASS=0; FAIL=0
 ok()  { echo "  PASS: $1"; PASS=$((PASS+1)); }
 bad() { echo "  FAIL: $1"; FAIL=$((FAIL+1)); }
 
-for pid in $(pgrep -f 'node .*build/index\.js' 2>/dev/null || true); do
-  [ "$pid" = "$$" ] && continue; kill "$pid" 2>/dev/null || true
+# Only free a leftover server that is *our* build on *our* port. A broad
+# `pgrep -f 'node .*build/index.js'` would kill unrelated Node processes.
+for pid in $(pgrep -f "node $BUILD" 2>/dev/null || true); do
+  if tr '\0' ' ' < "/proc/$pid/environ" 2>/dev/null | grep -q "PORT=$PORT"; then
+    kill "$pid" 2>/dev/null || true
+  fi
 done
 sleep 1
 rm -rf "$WD"; mkdir -p "$WD"
 
 ( cd "$WD" && env PORT=$PORT ORIGIN="$BASE" BASE_URL="$BASE" ENCRYPTION_PASSPHRASE=live2-pass \
-    node /home/hermes/workspace/party-manager/build/index.js > /tmp/verify-live2.log 2>&1 &
+    node "$BUILD" > /tmp/verify-live2.log 2>&1 &
   echo $! > /tmp/verify-live2.pid )
 for _ in $(seq 1 60); do curl -sf "$BASE/api/health" >/dev/null 2>&1 && break; sleep 0.5; done
 curl -sf "$BASE/api/health" >/dev/null 2>&1 || { echo "server down"; tail -5 /tmp/verify-live2.log; exit 1; }
