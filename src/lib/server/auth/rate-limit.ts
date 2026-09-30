@@ -13,6 +13,10 @@ import { getDb } from '../db/client';
 export const LOGIN_MAX_FAILURES = 5;
 export const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
+// Declared up here because MAX_WINDOW_MS below spans both namespaces.
+export const REGISTER_MAX = 5;
+export const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
 /**
  * Hashes the account identifier for the attempt log. The email itself is stored
  * encrypted in the users table; here we only keep a non-reversible digest so the
@@ -22,10 +26,25 @@ function hashAccount(account: string): string {
 	return crypto.createHash('sha256').update(account.trim().toLowerCase()).digest('hex');
 }
 
-function pruneOldAttempts(accountHash: string, now: number): void {
+/**
+ * The widest window any counter in this table uses. The opportunistic global sweep
+ * below may only delete rows older than this: it deletes across all namespaces, so
+ * pruning with a shorter window would silently expire another counter's rows.
+ */
+const MAX_WINDOW_MS = Math.max(LOGIN_WINDOW_MS, REGISTER_WINDOW_MS);
+
+/**
+ * Drops the expired rows of ONE account in ONE namespace.
+ *
+ * `windowMs` is a parameter and not a constant on purpose. This function is shared by
+ * the login counter (15 min) and the registration counter (1 h); a hardcoded
+ * LOGIN_WINDOW_MS made the registration prune delete rows the registration check
+ * still intended to count, so the 1 h limit effectively acted as 15 min.
+ */
+function pruneOldAttempts(accountHash: string, now: number, windowMs: number): void {
 	getDb()
 		.prepare('DELETE FROM login_attempts WHERE account_hash = ? AND attempted_at < ?')
-		.run(accountHash, now - LOGIN_WINDOW_MS);
+		.run(accountHash, now - windowMs);
 }
 
 export interface RateLimitStatus {
@@ -41,7 +60,7 @@ export function checkLoginRateLimit(account: string): RateLimitStatus {
 	const accountHash = hashAccount(account);
 	const now = Date.now();
 
-	pruneOldAttempts(accountHash, now);
+	pruneOldAttempts(accountHash, now, LOGIN_WINDOW_MS);
 
 	const row = getDb()
 		.prepare(
@@ -85,8 +104,12 @@ export function recordLoginFailure(account: string): void {
 
 	// Keep the table bounded: drop anything past the window for this account and
 	// opportunistically purge other stale rows.
-	pruneOldAttempts(accountHash, Date.now());
-	db.prepare('DELETE FROM login_attempts WHERE attempted_at < ?').run(Date.now() - LOGIN_WINDOW_MS);
+	//
+	// The global sweep must use MAX_WINDOW_MS, not LOGIN_WINDOW_MS: it spans both
+	// namespaces, and pruning with the shorter login window would delete registration
+	// rows that the 1 h registration window still has to count.
+	pruneOldAttempts(accountHash, Date.now(), LOGIN_WINDOW_MS);
+	db.prepare('DELETE FROM login_attempts WHERE attempted_at < ?').run(Date.now() - MAX_WINDOW_MS);
 }
 
 /**
@@ -108,10 +131,10 @@ export function clearLoginFailures(account: string): void {
  * namespace tag is mixed into the digest rather than prepended to the stored value,
  * so `account_hash` stays a plain hex SHA-256 and the regression test that proves no
  * raw address ever reaches this table keeps holding.
+ *
+ * REGISTER_MAX / REGISTER_WINDOW_MS are declared at the top of this file, next to
+ * the login constants, so MAX_WINDOW_MS can span both namespaces.
  */
-export const REGISTER_MAX = 5;
-export const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-
 function registerHash(account: string): string {
 	return crypto
 		.createHash('sha256')
@@ -123,7 +146,7 @@ export function checkRegisterRateLimit(account: string): RateLimitStatus {
 	const accountHash = registerHash(account);
 	const now = Date.now();
 
-	pruneOldAttempts(accountHash, now);
+	pruneOldAttempts(accountHash, now, REGISTER_WINDOW_MS);
 
 	const row = getDb()
 		.prepare(
@@ -160,8 +183,8 @@ export function recordRegisterAttempt(account: string): void {
 		Date.now()
 	);
 
-	pruneOldAttempts(accountHash, Date.now());
+	pruneOldAttempts(accountHash, Date.now(), REGISTER_WINDOW_MS);
 	getDb()
 		.prepare('DELETE FROM login_attempts WHERE attempted_at < ?')
-		.run(Date.now() - LOGIN_WINDOW_MS);
+		.run(Date.now() - MAX_WINDOW_MS);
 }

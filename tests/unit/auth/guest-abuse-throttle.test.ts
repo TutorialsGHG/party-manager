@@ -11,6 +11,7 @@ import {
 import {
 	checkRegisterRateLimit,
 	recordRegisterAttempt,
+	recordLoginFailure,
 	REGISTER_MAX
 } from '../../../src/lib/server/auth/rate-limit.js';
 
@@ -121,6 +122,65 @@ describe('Abuse throttling (guest + registration)', () => {
 				recordRegisterAttempt('attacker@party.local');
 			}
 			expect(checkRegisterRateLimit('someone-else@party.local').blocked).toBe(false);
+		});
+
+		// Regression: pruneOldAttempts() is shared by the login and the registration
+		// counter but used to hardcode LOGIN_WINDOW_MS (15 min). The prune therefore
+		// deleted rows the 1 h registration window still had to count, so the documented
+		// "5 per hour" limit actually acted as "5 per 15 minutes" - 4x the intended
+		// allowance, and a retry message that understated the real wait by the same
+		// factor. These tests pin the window itself, not just the counter.
+		describe('registration window is honoured, not just the login window', () => {
+			const regHash = (account: string) =>
+				crypto
+					.createHash('sha256')
+					.update(`register:${account.trim().toLowerCase()}`)
+					.digest('hex');
+
+			const seedAges = (account: string, agesMin: number[]) => {
+				const now = Date.now();
+				for (const age of agesMin) {
+					getDb()
+						.prepare('INSERT INTO login_attempts (account_hash, attempted_at) VALUES (?, ?)')
+						.run(regHash(account), now - age * 60 * 1000);
+				}
+			};
+
+			it('still blocks for attempts that are 4-20 minutes old', () => {
+				// Inside both the 1 h registration window and, before the fix, pruned
+				// away by the 15 min login window. This is the exact case that slipped through.
+				seedAges('window-a@party.local', [4, 8, 12, 16, 20]);
+				expect(checkRegisterRateLimit('window-a@party.local').blocked).toBe(true);
+			});
+
+			it('still blocks for attempts 18-50 minutes old', () => {
+				// The whole 15-60 min band, i.e. the range the old prune silently cleared.
+				seedAges('window-b@party.local', [18, 26, 34, 42, 50]);
+				expect(checkRegisterRateLimit('window-b@party.local').blocked).toBe(true);
+			});
+
+			it('reports a retry delay consistent with the 1 h window', () => {
+				seedAges('window-c@party.local', [1, 2, 3, 4, 5]);
+				const status = checkRegisterRateLimit('window-c@party.local');
+				expect(status.blocked).toBe(true);
+				// A 1 h window measured from the newest attempt cannot be exhausted in
+				// under ~55 min; the old 15 min window reported ~10 min here.
+				expect(status.retryAfterSeconds).toBeGreaterThan(50 * 60);
+			});
+
+			it('releases the budget once attempts are older than the 1 h window', () => {
+				// Proves the fix did not simply widen the window without bound.
+				seedAges('window-d@party.local', [66, 70, 74, 78, 82]);
+				expect(checkRegisterRateLimit('window-d@party.local').blocked).toBe(false);
+			});
+
+			it('does not let the login prune sweep delete registration rows', () => {
+				// The opportunistic global DELETE in recordLoginFailure spans all
+				// namespaces; with the 15 min bound it also purged register rows.
+				seedAges('window-e@party.local', [20, 24, 28, 32, 36]);
+				recordLoginFailure('somebody-else@party.local');
+				expect(checkRegisterRateLimit('window-e@party.local').blocked).toBe(true);
+			});
 		});
 	});
 });

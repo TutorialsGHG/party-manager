@@ -22,6 +22,26 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   Schule hinter derselben Adresse sitzen). Migration `006_guest_rate_limit.sql`.
   Ein fehlender Device-Token gilt als gesperrt, nicht als unbeschränkt.
 
+Review-Follow-up zu den beiden obigen Punkten:
+
+- **Das Register-Fenster war wirkungslos (Korrektur):** `pruneOldAttempts()` teilte
+  sich zwischen Login- und Registrierungszähler, benutzte aber fest
+  `LOGIN_WINDOW_MS` (15 min). Der Prune löschte damit genau die Zeilen, die das
+  1-Stunden-Fenster noch zählen sollte — real griff das Limit also alle 15 Minuten
+  statt alle 60. Dasselbe galt für den opportunistischen globalen Sweep, der über
+  beide Namespaces löschte. Jetzt nimmt `pruneOldAttempts` das Fenster als Parameter,
+  und der globale Sweep boundet sich am größten Fenster der Tabelle (`MAX_WINDOW_MS`).
+- **Drei Gast-Pfade waren ungedrosselt (Korrektur):** die Beschreibung nannte RSVP,
+  Pinnwand-Löschen, Begleitlink-Erstellung und Upload-Sitzungen, im Code geschützt
+  waren nur Pinnwand, Umfragestimmen und Poll-Optionen. `GUEST_UPLOAD_MAX` war toter
+  Code. Alle Actions sind jetzt gedrosselt; die Upload-Sitzung nutzt das engere
+  Upload-Budget (10 statt 20).
+- **Tests auf Route-Ebene:** die bisherigen Tests prüften nur den Helper. Genau deshalb
+  blieb die Lücke unentdeckt — der Helper war korrekt, die Aufrufer fehlten. Neu ist
+  `tests/unit/auth/guest-route-throttle.test.ts`, das jede mutierende Action einzeln
+  prüft, inklusive eines Catch-all-Tests, der eine neu hinzugefügte Action ohne
+  Drosselung sofort sichtbar macht.
+
 Behobene Befunde aus dem externen Sicherheitsaudit:
 
 - **Umfragen-IDOR (HOCH):** `addPollOption` und `votePoll` prüfen jetzt, dass die
