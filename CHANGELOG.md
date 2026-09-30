@@ -84,6 +84,28 @@ Review-Follow-up zu den beiden obigen Punkten:
 > Der erste Benutzer bleibt immer registrierbar, eine frische Instanz ist damit
 > unverändert installierbar.
 
+- **Gast- und Begleit-Cookies ohne `secure`-Flag:** Die Device-Token-Cookies
+  (`dev_tok_*`, `comp_inv_*`), über die ein Gast seinen Upload-, SSE- und
+  Löschezugriff authorisiert, wurden ohne `secure`-Flag gesetzt und bei einer
+  fehlkonfigurierten TLS-Terminierung im Klartext übertragen. Sie verwenden jetzt
+  dieselbe transportabhängige Quelle wie die Host-Session
+  (`GUEST_COOKIE_OPTIONS` in `session.ts`), statt die Attribute an drei Stellen zu
+  wiederholen.
+
+### Changed
+
+- **`pnpm lint` läuft jetzt in der CI:** `test:ci` enthielt nur `check` und nicht
+  `lint`, wodurch Formatierungs- und ESLint-Verstöße unbemerkt auf `main` landen
+  konnten. ESLint meldet aktuell 0 Fehler (59 Warnungen).
+
+### Fixed
+
+- **`POW_SECRET` ist jetzt dokumentiert:** Der HMAC-Schlüssel für die
+  Registrierungs-Proof-of-Work-Challenges war weder in `.env.example` noch in
+  `docker-compose.yml` gesetzt. Ohne explizite Konfiguration erzeugt der Server
+  bei jedem Boot einen zufälligen Schlüssel: alle vor dem Neustart ausgestellten
+  Challenges werden ungültig, und mehrere Instanzen verhalten sich unterschiedlich.
+
 Behobene Befunde aus dem externen Sicherheitsaudit:
 
 - **Umfragen-IDOR (HOCH):** `addPollOption` und `votePoll` prüfen jetzt, dass die
