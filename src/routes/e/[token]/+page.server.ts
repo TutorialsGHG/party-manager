@@ -1,10 +1,11 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, type ActionFailure } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import crypto from 'node:crypto';
 import { findEventByToken } from '$lib/server/db/repositories/event.repository';
 import {
 	findGuestByDeviceToken,
-	registerGuest
+	registerGuest,
+	type GuestData
 } from '$lib/server/db/repositories/guest.repository';
 import {
 	findRsvpByGuestId,
@@ -31,9 +32,64 @@ import {
 	getOrCreateCompanionInvite,
 	listCompanionInvitesForOwner
 } from '$lib/server/db/repositories/companion-invite.repository';
+import { checkGuestRateLimit, recordGuestAttempt } from '$lib/server/auth/guest-rate-limit';
 
 const GUEST_COOKIE_PREFIX = 'dev_tok_';
 const COMPANION_COOKIE_PREFIX = 'comp_inv_';
+
+/**
+ * Resolves the guest for a mutating action on the public invitation page and applies
+ * the per-device abuse throttle (Tier 1 hardening).
+ *
+ * Every guest action used to be unthrottled, so anyone holding an invite link could
+ * script wall posts, poll votes and RSVP changes without limit. The throttle is keyed
+ * on the device token rather than the IP, because all guests of one school share a
+ * single public IP and a per-IP limit would lock out the whole audience.
+ *
+ * Returns a discriminated union so callers narrow via `if (!auth.ok)` and get a
+ * non-null `guest` without an assertion. Call `recordGuestAttempt` only after the
+ * action actually performed the mutation, so a rejected submission does not consume
+ * the guest's budget.
+ *
+ * `failure` is typed as ActionFailure<unknown> rather than a concrete `fail()`
+ * return on purpose: annotating it with the union of every action's payload made
+ * SvelteKit infer `form` as `{}` for the whole page, which broke the companion-token
+ * read in +page.svelte. Spreading `auth.failure` keeps each action's own payload
+ * shape intact.
+ */
+type GuestAuthResult =
+	| { ok: true; guest: GuestData; deviceToken: string }
+	| { ok: false; failure: ActionFailure<{ error: string }> };
+
+async function authorizeGuestAction(
+	eventId: string,
+	cookies: { get: (name: string) => string | undefined },
+	deviceToken: string | undefined
+): Promise<GuestAuthResult> {
+	const token = deviceToken || cookies.get(`${GUEST_COOKIE_PREFIX}${eventId.slice(0, 8)}`);
+	if (!token) {
+		return { ok: false, failure: fail(400, { error: 'Kein Gerätezugriff.' }) };
+	}
+
+	const rateLimit = checkGuestRateLimit(eventId, token);
+	if (rateLimit.blocked) {
+		return {
+			ok: false,
+			failure: fail(429, {
+				error: `Zu viele Aktionen. Bitte in ${Math.ceil(
+					rateLimit.retryAfterSeconds / 60
+				)} Minuten erneut versuchen.`
+			})
+		};
+	}
+
+	const guest = findGuestByDeviceToken(eventId, token);
+	if (!guest) {
+		return { ok: false, failure: fail(403, { error: 'Keine Berechtigung.' }) };
+	}
+
+	return { ok: true, guest, deviceToken: token };
+}
 
 export const load: PageServerLoad = async ({ params, url, cookies, setHeaders }) => {
 	setHeaders({
@@ -223,8 +279,8 @@ export const actions: Actions = {
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
-		const guest = deviceToken ? findGuestByDeviceToken(event.id, deviceToken) : null;
-		if (!guest) return fail(400, { error: 'Bitte gib zuerst deinen Namen ein.' });
+		const auth = await authorizeGuestAction(event.id, cookies, deviceToken);
+		if (!auth.ok) return auth.failure;
 
 		const formData = await request.formData();
 		const content = String(formData.get('content') || '').trim();
@@ -232,7 +288,8 @@ export const actions: Actions = {
 			return fail(400, { error: 'Beitrag darf nicht leer sein (max. 2000 Zeichen).' });
 		}
 
-		const post = createWallPost(event.id, guest.id, content);
+		const post = createWallPost(event.id, auth.guest.id, content);
+		recordGuestAttempt(event.id, auth.deviceToken);
 		sseHub.broadcast(event.id, 'wall:new', post);
 		return { success: true, post };
 	},
@@ -262,15 +319,16 @@ export const actions: Actions = {
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
-		const guest = deviceToken ? findGuestByDeviceToken(event.id, deviceToken) : null;
-		if (!guest) return fail(400, { error: 'Bitte gib zuerst deinen Namen ein.' });
+		const auth = await authorizeGuestAction(event.id, cookies, deviceToken);
+		if (!auth.ok) return auth.failure;
 
 		const formData = await request.formData();
 		const pollId = String(formData.get('pollId') || '');
 		const optionIds = formData.getAll('optionId').map(String);
 
-		const success = votePoll(pollId, guest.id, optionIds, event.id);
+		const success = votePoll(pollId, auth.guest.id, optionIds, event.id);
 		if (success) {
+			recordGuestAttempt(event.id, auth.deviceToken);
 			sseHub.broadcast(event.id, 'poll:vote', { pollId });
 		}
 		return { success };
@@ -282,8 +340,8 @@ export const actions: Actions = {
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
-		const guest = deviceToken ? findGuestByDeviceToken(event.id, deviceToken) : null;
-		if (!guest) return fail(400, { error: 'Bitte gib zuerst deinen Namen ein.' });
+		const auth = await authorizeGuestAction(event.id, cookies, deviceToken);
+		if (!auth.ok) return auth.failure;
 
 		const formData = await request.formData();
 		const pollId = String(formData.get('pollId') || '');
@@ -300,10 +358,11 @@ export const actions: Actions = {
 			return fail(404, { error: 'Umfrage nicht gefunden.' });
 		}
 
-		const opt = addPollOption(pollId, event.id, text, guest.id);
+		const opt = addPollOption(pollId, event.id, text, auth.guest.id);
 		if (!opt) {
 			return fail(404, { error: 'Umfrage nicht gefunden.' });
 		}
+		recordGuestAttempt(event.id, auth.deviceToken);
 		sseHub.broadcast(event.id, 'poll:update', { pollId });
 		return { success: true, opt };
 	}

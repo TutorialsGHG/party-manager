@@ -95,3 +95,73 @@ export function recordLoginFailure(account: string): void {
 export function clearLoginFailures(account: string): void {
 	getDb().prepare('DELETE FROM login_attempts WHERE account_hash = ?').run(hashAccount(account));
 }
+
+/**
+ * Registration throttling (Tier 1 hardening).
+ *
+ * Separate from the login counter because they defend against different abuse and
+ * must not share a budget: an attacker creating throwaway accounts must not be able
+ * to exhaust the login allowance of the real host, and repeated typos on /login must
+ * not lock a legitimate new user out of /register.
+ *
+ * Keyed by the submitted account identifier for the same NAT reason as above. The
+ * namespace tag is mixed into the digest rather than prepended to the stored value,
+ * so `account_hash` stays a plain hex SHA-256 and the regression test that proves no
+ * raw address ever reaches this table keeps holding.
+ */
+export const REGISTER_MAX = 5;
+export const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function registerHash(account: string): string {
+	return crypto
+		.createHash('sha256')
+		.update(`register:${account.trim().toLowerCase()}`)
+		.digest('hex');
+}
+
+export function checkRegisterRateLimit(account: string): RateLimitStatus {
+	const accountHash = registerHash(account);
+	const now = Date.now();
+
+	pruneOldAttempts(accountHash, now);
+
+	const row = getDb()
+		.prepare(
+			`SELECT COUNT(*) AS failures, MAX(attempted_at) AS last_attempt
+      FROM login_attempts
+      WHERE account_hash = ? AND attempted_at >= ?`
+		)
+		.get(accountHash, now - REGISTER_WINDOW_MS) as
+		{ failures: number; last_attempt: number | null } | undefined;
+
+	const failures = row?.failures || 0;
+	if (failures < REGISTER_MAX) {
+		return {
+			blocked: false,
+			remaining: REGISTER_MAX - failures,
+			retryAfterSeconds: 0
+		};
+	}
+
+	const windowEnd = (row?.last_attempt || now) + REGISTER_WINDOW_MS;
+	return {
+		blocked: true,
+		remaining: 0,
+		retryAfterSeconds: Math.max(1, Math.ceil((windowEnd - now) / 1000))
+	};
+}
+
+export function recordRegisterAttempt(account: string): void {
+	const accountHash = registerHash(account);
+	const db = getDb();
+
+	db.prepare('INSERT INTO login_attempts (account_hash, attempted_at) VALUES (?, ?)').run(
+		accountHash,
+		Date.now()
+	);
+
+	pruneOldAttempts(accountHash, Date.now());
+	getDb()
+		.prepare('DELETE FROM login_attempts WHERE attempted_at < ?')
+		.run(Date.now() - LOGIN_WINDOW_MS);
+}

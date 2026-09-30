@@ -6,6 +6,22 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ### Security
 
+- **Offene Registrierung als Default:** `registrationEnabled` war `true`. Damit
+  akzeptierte jede erreichbare Instanz automatisierte Account-Erstellung: der
+  einzige Widerstand auf `/register` ist ein Proof-of-Work, das ein Angreifer
+  serverseitig für eine SHA-256-Schleife löst. Der Default ist jetzt `false` — der
+  erste Benutzer kann weiterhin immer registrieren, alle weiteren erfordern eine
+  bewusste Entscheidung in `/admin`.
+- **Rate-Limit für `/register`:** 5 Versuche pro Konto und Stunde, in einem vom
+  Login-Zähler getrennten Key-Space. Der erste Benutzer ist ausgenommen, damit eine
+  frische Instanz installierbar bleibt.
+- **Rate-Limit für die öffentlichen Gast-Pfade:** RSVP, Pinnwand-Beiträge,
+  Umfragestimmen und Poll-Optionen waren komplett ungedrosselt — ein `curl`-Loop
+  konnte die Pinnwand jedes bekannten Events füllen. 20 Aktionen pro Device und
+  10 Minuten, gekeyt auf den Device-Token (nicht auf die IP, weil alle Gäste einer
+  Schule hinter derselben Adresse sitzen). Migration `006_guest_rate_limit.sql`.
+  Ein fehlender Device-Token gilt als gesperrt, nicht als unbeschränkt.
+
 Behobene Befunde aus dem externen Sicherheitsaudit:
 
 - **Umfragen-IDOR (HOCH):** `addPollOption` und `votePoll` prüfen jetzt, dass die
@@ -55,7 +71,7 @@ Behobene Befunde aus dem externen Sicherheitsaudit:
   Andernfalls konnte ein Gast das gesamte Kontingent durch bloßes Eröffnen von
   Upload-Sessions blockieren.
 - **Speicher-Kontingent umgehbar (HOCH, im Review gefunden):** das Kontingent wird
-  aus der *deklarierten* `Upload-Length` berechnet, und der PATCH-Pfad hat diese
+  aus der _deklarierten_ `Upload-Length` berechnet, und der PATCH-Pfad hat diese
   Länge nicht erzwungen – ein Gast konnte eine kleine Datei ankündigen (damit die
   Quota greift) und anschließend bis zum Body-Limit der Laufzeit (512 KB bare
   Metal, `BODY_SIZE_LIMIT` im Docker-Image) größere Chunks senden. `appendUploadChunk`

@@ -10,6 +10,7 @@ import { hashPassword, verifyPassword, DUMMY_ARGON2_HASH } from '$lib/server/aut
 import { generateRecoveryCodes } from '$lib/server/auth/recovery';
 import { createPoWChallenge, verifyPoWSolution } from '$lib/server/auth/pow';
 import { createSession, setSessionCookie } from '$lib/server/auth/session';
+import { checkRegisterRateLimit, recordRegisterAttempt } from '$lib/server/auth/rate-limit';
 import { registerSchema } from '$lib/shared/schemas';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -56,9 +57,34 @@ export const actions: Actions = {
 			});
 		}
 
+		// 0. Throttle registration attempts.
+		//
+		// Prevents automated account creation. The proof-of-work below is not a
+		// substitute: it runs in the browser of a legitimate user, but an attacker
+		// solving it server-side costs a single SHA-256 loop and is nearly free to
+		// script. The throttle is keyed per submitted account, so repeated typos on a
+		// real address cannot lock a legitimate user out of their own registration.
+		//
+		// The first user is exempt: a fresh instance must stay installable even though
+		// the counter would otherwise be shared by whoever reaches /register first.
+		if (!isFirstUser) {
+			const rateLimit = checkRegisterRateLimit(email);
+			if (rateLimit.blocked) {
+				return fail(429, {
+					error: `Zu viele Registrierungsversuche. Bitte in ${Math.ceil(
+						rateLimit.retryAfterSeconds / 60
+					)} Minuten erneut versuchen.`,
+					values: { email }
+				});
+			}
+		}
+
 		// 1. Verify Proof-of-Work solution
 		const isPoWValid = verifyPoWSolution(challenge, nonce, difficulty, expiresAt, signature);
 		if (!isPoWValid) {
+			// A failed proof is the cheap path for an attacker, so it counts too -
+			// otherwise the throttle would only ever trip on PoW that somehow passed.
+			recordRegisterAttempt(email);
 			return fail(400, {
 				error:
 					'Sicherheitsprüfung (Proof-of-Work) fehlgeschlagen oder abgelaufen. Bitte versuche es erneut.',

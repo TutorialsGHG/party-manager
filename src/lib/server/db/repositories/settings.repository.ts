@@ -14,7 +14,13 @@ export interface SystemSettings {
 }
 
 export const DEFAULT_SETTINGS: SystemSettings = {
-	registrationEnabled: true,
+	// Opt-in, not opt-out. With `true` every reachable instance would accept
+	// automated account creation: the only friction on /register is a proof-of-work
+	// challenge, which an attacker solves server-side for the cost of a SHA-256
+	// loop. The first user can always register regardless of this flag, so a fresh
+	// instance stays installable; enabling it afterwards is an explicit admin
+	// decision in /admin rather than the out-of-the-box state.
+	registrationEnabled: false,
 	maxUploadSizeMb: 500,
 	quotaPerEventMb: 5000,
 	smtpHost: '',

@@ -220,6 +220,27 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_login_attempts_account ON login_attempts(account_hash, attempted_at);
 `
+	],
+	[
+		'006_guest_rate_limit.sql',
+		`
+-- Abuse throttling for the public, unauthenticated guest paths (invitation page
+-- actions: RSVP, wall posts, poll votes, upload session creation).
+--
+-- Keyed by a hash of the per-event device token, never by IP: every guest of one
+-- school sits behind a single shared public IP, so a per-IP limit would lock out
+-- the entire audience after a handful of legitimate actions. This is the same
+-- reasoning as login_attempts in 005, applied to guests.
+CREATE TABLE IF NOT EXISTS guest_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id TEXT NOT NULL,
+  device_token_hash TEXT NOT NULL,
+  attempted_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_guest_attempts_device
+  ON guest_attempts(event_id, device_token_hash, attempted_at);
+`
 	]
 ];
 
