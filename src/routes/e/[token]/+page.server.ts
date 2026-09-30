@@ -23,6 +23,7 @@ import {
 	isPollInEvent
 } from '$lib/server/db/repositories/poll.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
+import { GUEST_COOKIE_OPTIONS } from '$lib/server/auth/session';
 import { rsvpSchema } from '$lib/shared/schemas';
 import { MediaRepository } from '$lib/server/db/repositories/media.repository';
 import {
@@ -56,9 +57,7 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 		: null;
 	if (companionToken && companionInvite) {
 		cookies.set(`${COMPANION_COOKIE_PREFIX}${event.id.slice(0, 8)}`, companionToken, {
-			path: '/',
-			httpOnly: true,
-			sameSite: 'lax',
+			...GUEST_COOKIE_OPTIONS,
 			maxAge: 30 * 24 * 60 * 60
 		});
 	}
@@ -66,9 +65,7 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 	if (!deviceToken) {
 		deviceToken = crypto.randomBytes(24).toString('base64url');
 		cookies.set(cookieName, deviceToken, {
-			path: '/',
-			httpOnly: true,
-			sameSite: 'lax',
+			...GUEST_COOKIE_OPTIONS,
 			maxAge: 365 * 24 * 60 * 60
 		});
 	}
@@ -119,9 +116,7 @@ export const actions: Actions = {
 		if (!deviceToken) {
 			deviceToken = crypto.randomBytes(24).toString('base64url');
 			cookies.set(cookieName, deviceToken, {
-				path: '/',
-				httpOnly: true,
-				sameSite: 'lax',
+				...GUEST_COOKIE_OPTIONS,
 				maxAge: 365 * 24 * 60 * 60
 			});
 		}

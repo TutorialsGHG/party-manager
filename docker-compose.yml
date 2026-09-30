@@ -23,6 +23,10 @@ services:
       - EVENTS_KEY_DIR=/config/keys/events
       # Required before exposing the app outside a trusted local environment.
       - ENCRYPTION_PASSPHRASE=${ENCRYPTION_PASSPHRASE:-}
+      # Optional but recommended: keeps proof-of-work challenges valid across
+      # restarts and identical across nodes. Without it the server derives a
+      # random secret at boot. Generate with: openssl rand -hex 32
+      - POW_SECRET=${POW_SECRET:-}
     volumes:
       # Persistent SQLite DB and encrypted media blobs
       - party_data:/data

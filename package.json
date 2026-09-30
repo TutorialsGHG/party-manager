@@ -19,7 +19,7 @@
 		"test:unit": "vitest",
 		"test": "npm run test:unit -- --run && npm run test:e2e",
 		"test:e2e": "playwright install && playwright test",
-		"test:ci": "pnpm run check:docs && pnpm run check:i18n && pnpm run check:boundaries && pnpm run check:no-external && pnpm run check && pnpm run test:unit --run"
+		"test:ci": "pnpm run check:docs && pnpm run check:i18n && pnpm run check:boundaries && pnpm run check:no-external && pnpm run lint && pnpm run check && pnpm run test:unit --run"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

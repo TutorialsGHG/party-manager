@@ -19,7 +19,28 @@ export const isHttpsBaseUrl = (baseUrl: string): boolean => {
 	}
 };
 
-const isHttps = (): boolean => isHttpsBaseUrl(config.baseUrl);
+/**
+ * Whether cookies must carry `secure`, derived from the transport that actually
+ * serves the app. Exported so the guest/companion device cookies set on the public
+ * invitation routes use the exact same source of truth as the host session cookie -
+ * they were previously written without the flag, which leaked device tokens in
+ * cleartext whenever a reverse proxy terminated TLS incorrectly.
+ */
+export const isHttps = (): boolean => isHttpsBaseUrl(config.baseUrl);
+
+/**
+ * Baseline cookie attributes for the non-session, per-event guest cookies.
+ *
+ * Same hardening as the session cookie: `httpOnly` keeps the token out of reach of
+ * injected scripts, `secure` follows the transport, and `path: '/'` is required
+ * because the token is read by sibling routes (upload, media, SSE).
+ */
+export const GUEST_COOKIE_OPTIONS = {
+	path: '/',
+	httpOnly: true,
+	secure: isHttps(),
+	sameSite: 'lax'
+} as const;
 
 /**
  * Cookie name for a given transport.
