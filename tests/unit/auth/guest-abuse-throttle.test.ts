@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { runMigrations } from '../../../src/lib/server/db/migrate.js';
 import { getDb } from '../../../src/lib/server/db/client.js';
 import {
@@ -12,8 +14,16 @@ import {
 	checkRegisterRateLimit,
 	recordRegisterAttempt,
 	recordLoginFailure,
-	REGISTER_MAX
+	checkRegisterIpRateLimit,
+	recordRegisterIpAttempt,
+	REGISTER_MAX,
+	REGISTER_IP_MAX
 } from '../../../src/lib/server/auth/rate-limit.js';
+
+const REGISTER_ACTION_PATH = resolve(
+	import.meta.dirname,
+	'../../../src/routes/(auth)/register/+page.server.ts'
+);
 
 /**
  * Abuse throttling for the public guest paths and for registration (Tier 1).
@@ -78,9 +88,33 @@ describe('Abuse throttling (guest + registration)', () => {
 
 		it('supports a tighter, separate budget for uploads', () => {
 			for (let i = 0; i < GUEST_UPLOAD_MAX; i++) {
-				recordGuestAttempt(EVENT, DEVICE);
+				recordGuestAttempt(EVENT, DEVICE, 'upload');
 			}
-			expect(checkGuestRateLimit(EVENT, DEVICE, GUEST_UPLOAD_MAX).blocked).toBe(true);
+			expect(checkGuestRateLimit(EVENT, DEVICE, 'upload').blocked).toBe(true);
+		});
+
+		// --- Regression: the two budgets were NOT independent ---
+		//
+		// guest_attempts had no budget column, so both counters counted the same rows.
+		// Spending the (smaller) upload allowance silently debited the write allowance
+		// too. These two tests failed on the original implementation with concrete
+		// numbers - 10 uploads left 10 of 20 posts, and 20 posts blocked uploads - and
+		// they are the reason the table now namespaces rows by budget.
+		it('spending the upload budget does not debit the write budget', () => {
+			for (let i = 0; i < GUEST_UPLOAD_MAX; i++) {
+				recordGuestAttempt(EVENT, DEVICE, 'upload');
+			}
+			// Zero wall posts so far, so the full write allowance must remain.
+			expect(checkGuestRateLimit(EVENT, DEVICE, 'write').remaining).toBe(GUEST_WRITE_MAX);
+		});
+
+		it('spending the write budget does not block uploads', () => {
+			for (let i = 0; i < GUEST_WRITE_MAX; i++) {
+				recordGuestAttempt(EVENT, DEVICE, 'write');
+			}
+			// The upload allowance is untouched and must still be fully available.
+			expect(checkGuestRateLimit(EVENT, DEVICE, 'upload').blocked).toBe(false);
+			expect(checkGuestRateLimit(EVENT, DEVICE, 'upload').remaining).toBe(GUEST_UPLOAD_MAX);
 		});
 
 		it('treats a missing device token as blocked rather than unlimited', () => {
@@ -122,6 +156,70 @@ describe('Abuse throttling (guest + registration)', () => {
 				recordRegisterAttempt('attacker@party.local');
 			}
 			expect(checkRegisterRateLimit('someone-else@party.local').blocked).toBe(false);
+		});
+
+		// --- Regression: the throttle did not count successful registrations ---
+		//
+		// The only recordRegisterAttempt() call sat inside the proof-of-work FAILURE
+		// branch, so a client that solved the challenge correctly - which the PR's own
+		// comment notes costs one SHA-256 loop - never incremented the counter while
+		// creating one account per address. The counter was therefore decorative for
+		// the case it existed to stop.
+		//
+		// Proven from the action source rather than by simulating the whole action: the
+		// invariant is about WHERE the record call sits relative to the PoW gate, and a
+		// source assertion is what actually pins it. A successful-registration
+		// integration test would prove the same line exists, at higher cost.
+		it('records an attempt for a registration that passes the proof-of-work', () => {
+			const src = readFileSync(REGISTER_ACTION_PATH, 'utf-8');
+
+			// Two distinct call sites are required: one inside the PoW-failure branch and
+			// one for everything that got PAST the gate. Asserting a count (rather than a
+			// position) is what makes this fail on the original code, which had only the
+			// failure-branch call.
+			const callSites = src.split('recordRegisterAttempt(email);').length - 1;
+			expect(callSites).toBe(2);
+
+			// The second call must sit after the PoW gate and before the outcome is known,
+			// so a successful registration and a "mail already taken" both get counted.
+			const firstCall = src.indexOf('recordRegisterAttempt(email);');
+			const secondCall = src.indexOf('recordRegisterAttempt(email);', firstCall + 1);
+			const outcomeCheck = src.indexOf('// 2. Check if email is already taken.');
+
+			expect(secondCall).toBeGreaterThan(firstCall);
+			expect(outcomeCheck).toBeGreaterThan(secondCall);
+
+			// And it must not be nested back inside the failure branch: the PoW gate ends
+			// before the second call, so it also runs for a valid proof.
+			const powFailure = src.indexOf('if (!isPoWValid) {');
+			const powFailureRecord = src.indexOf('recordRegisterAttempt(email);', powFailure);
+			expect(powFailureRecord).toBe(firstCall);
+		});
+
+		// The per-account key only bounds abuse of ONE address, so an attacker rotating
+		// throwaway addresses never trips it. The network ceiling is what bounds that.
+		describe('network-wide ceiling', () => {
+			it('bounds address rotation from a single network', () => {
+				for (let i = 0; i < REGISTER_IP_MAX; i++) {
+					// A different address every time: the per-account limit never trips.
+					recordRegisterIpAttempt('10.0.0.1');
+					expect(checkRegisterRateLimit(`throwaway-${i}@party.local`).blocked).toBe(false);
+				}
+				expect(checkRegisterIpRateLimit('10.0.0.1').blocked).toBe(true);
+			});
+
+			it('does not let one network consume another network budget', () => {
+				for (let i = 0; i < REGISTER_IP_MAX; i++) {
+					recordRegisterIpAttempt('10.0.0.1');
+				}
+				expect(checkRegisterIpRateLimit('10.0.0.2').blocked).toBe(false);
+			});
+
+			it('degrades to no ceiling when no client address is available', () => {
+				// Behind a proxy with no ADDRESS_HEADER the address is unknown. It must
+				// not block everyone; the per-account limit still applies in that case.
+				expect(checkRegisterIpRateLimit(null).blocked).toBe(false);
+			});
 		});
 
 		// Regression: pruneOldAttempts() is shared by the login and the registration

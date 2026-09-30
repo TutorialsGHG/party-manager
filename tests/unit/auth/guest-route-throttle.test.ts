@@ -16,10 +16,7 @@ import { resolve } from 'node:path';
  * the layer where the bug lived: the wiring between action and guard. A Playwright
  * E2E test for this would be the stronger follow-up.
  */
-const ROUTE_PATH = resolve(
-	import.meta.dirname,
-	'../../../src/routes/e/[token]/+page.server.ts'
-);
+const ROUTE_PATH = resolve(import.meta.dirname, '../../../src/routes/e/[token]/+page.server.ts');
 const UPLOAD_PATH = resolve(import.meta.dirname, '../../../src/routes/api/upload/+server.ts');
 
 function actionBlock(source: string, name: string): string {
@@ -99,10 +96,15 @@ describe('every mutating guest action is throttled', () => {
 });
 
 describe('upload session creation uses the tighter upload budget', () => {
-	it('checks GUEST_UPLOAD_MAX instead of the default write budget', () => {
+	it("names the 'upload' budget at both the check and the record", () => {
 		const upload = readFileSync(UPLOAD_PATH, 'utf-8');
-		expect(upload).toContain('checkGuestRateLimit(eventId, guestToken, GUEST_UPLOAD_MAX)');
-		expect(upload).toContain('recordGuestAttempt(eventId, uploaderDeviceToken)');
+		// The budget must be named, not passed as a bare limit number: a number cannot
+		// tell the two counters apart, which is how they came to share one row set.
+		expect(upload).toContain("checkGuestRateLimit(eventId, guestToken, 'upload')");
+		// The record MUST carry the same budget as the check. An earlier version
+		// recorded against the default write budget while checking uploads, so every
+		// upload silently debited the guest's wall-post allowance.
+		expect(upload).toContain("recordGuestAttempt(eventId, uploaderDeviceToken, 'upload')");
 	});
 
 	it('does not rate limit the authenticated host path', () => {

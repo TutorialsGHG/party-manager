@@ -35,7 +35,7 @@ import {
 import {
 	checkGuestRateLimit,
 	recordGuestAttempt,
-	GUEST_WRITE_MAX
+	type GuestBudget
 } from '$lib/server/auth/guest-rate-limit';
 
 const GUEST_COOKIE_PREFIX = 'dev_tok_';
@@ -73,14 +73,14 @@ async function authorizeGuestAction(
 	eventId: string,
 	cookies: { get: (name: string) => string | undefined },
 	deviceToken: string | undefined,
-	limit: number = GUEST_WRITE_MAX
+	budget: GuestBudget = 'write'
 ): Promise<GuestAuthResult> {
 	const token = deviceToken || cookies.get(`${GUEST_COOKIE_PREFIX}${eventId.slice(0, 8)}`);
 	if (!token) {
 		return { ok: false, failure: fail(400, { error: 'Kein Gerätezugriff.' }) };
 	}
 
-	const rateLimit = checkGuestRateLimit(eventId, token, limit);
+	const rateLimit = checkGuestRateLimit(eventId, token, budget);
 	if (rateLimit.blocked) {
 		return {
 			ok: false,

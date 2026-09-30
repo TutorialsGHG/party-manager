@@ -24,6 +24,34 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 Review-Follow-up zu den beiden obigen Punkten:
 
+- **Upload- und Schreibbudget fraßen sich gegenseitig (HOCH, im Review gefunden):**
+  `guest_attempts` hatte keine Budget-Spalte, wodurch beide Zähler dieselben Zeilen
+  zählten. Nachgewiesen mit den exakten Zahlen: 10 legale Uploads ließen nur noch
+  10 von 20 Pinnwand-Beiträgen übrig, und 20 Pinnwand-Beiträge blockierten Uploads,
+  obwohl das Upload-Budget unberührt war. Jetzt trägt jede Zeile ihr Budget, gewählt
+  über den Namen (`'write'` / `'upload'`) statt über eine nackte Limit-Zahl — eine
+  Zahl kann die Zähler nicht unterscheiden, genau das war die Ursache. Der
+  Aufrufer in `api/upload` zeichnete außerdem gegen das Default-Write-Budget auf,
+  während er das Upload-Budget prüfte. Migration
+  `007_guest_attempt_budget.sql` ergänzt die Spalte additiv; bestehende Zeilen werden
+  `'write'` zugeordnet, damit kein Upgrade mitten im Fenster ein neues Budget
+  verschenkt.
+- **Das Register-Fenster zählte erfolgreiche Registrierungen nicht (HOCH, im Review
+  gefunden):** der einzige `recordRegisterAttempt()`-Aufruf lag im Zweig für eine
+  **fehlgeschlagene** Proof-of-Work-Prüfung. Wer die Challenge korrekt löst — was
+  laut obigem Kommentar genau eine SHA-256-Schleife kostet — trieb den Zähler also
+  nie hoch und legte trotzdem ein Konto pro Adresse an. Der Aufruf zählt jetzt, direkt
+  nachdem die PoW-Schranke passiert ist und bevor das Ergebnis feststeht, sodass auch
+  Erfolg und „Adresse bereits vergeben" gezählt werden.
+- **Adressen-Rotation war unbegrenzt (HOCH, im Review gefunden):** das Limit pro
+  Konto begrenzt nur eine Adresse; wer Wegwerf-Adressen rotiert, löst es nie aus.
+  Neu ist eine bewusst **großzügige** Netz-Deckelung (50 Versuche pro Netz und
+  Stunde), die genau diesen Fall fängt. Sie liegt weit über jedem plausiblen
+  echten Burst, damit sich eine ganze Schule hinter einem NAT nicht aussperrt. Ohne
+  konfigurierte `ADDRESS_HEADER` liefert SvelteKit keine Adresse — dann greift
+  weiterhin das Limit pro Konto. Bewusst **kein** Fallback auf `X-Forwarded-For`:
+  ohne Trusted-Proxy-Liste könnte der Client den Header selbst setzen und sein
+  eigenes Limit zurücksetzen.
 - **Das Register-Fenster war wirkungslos (Korrektur):** `pruneOldAttempts()` teilte
   sich zwischen Login- und Registrierungszähler, benutzte aber fest
   `LOGIN_WINDOW_MS` (15 min). Der Prune löschte damit genau die Zeilen, die das
@@ -31,6 +59,10 @@ Review-Follow-up zu den beiden obigen Punkten:
   statt alle 60. Dasselbe galt für den opportunistischen globalen Sweep, der über
   beide Namespaces löschte. Jetzt nimmt `pruneOldAttempts` das Fenster als Parameter,
   und der globale Sweep boundet sich am größten Fenster der Tabelle (`MAX_WINDOW_MS`).
+  Derselbe Fehlertyp stand auch im Gast-Modul: `pruneOldAttempts` benutzte fest
+  `GUEST_WRITE_WINDOW_MS`, während die Prüfung ein Fenster als Parameter annahm.
+  Heute folgen beide Guest-Budgets 10 Minuten, deshalb war es noch nicht sichtbar —
+  mit benannten Budgets kann es aber strukturell nicht mehr auftreten.
 - **Drei Gast-Pfade waren ungedrosselt (Korrektur):** die Beschreibung nannte RSVP,
   Pinnwand-Löschen, Begleitlink-Erstellung und Upload-Sitzungen, im Code geschützt
   waren nur Pinnwand, Umfragestimmen und Poll-Optionen. `GUEST_UPLOAD_MAX` war toter
@@ -41,6 +73,16 @@ Review-Follow-up zu den beiden obigen Punkten:
   `tests/unit/auth/guest-route-throttle.test.ts`, das jede mutierende Action einzeln
   prüft, inklusive eines Catch-all-Tests, der eine neu hinzugefügte Action ohne
   Drosselung sofort sichtbar macht.
+
+> **⚠️ Hinweis für Betreiber (Upgrade):** Der Default von `registrationEnabled` ist
+> jetzt `false`. Das kann **auch bestehende Installationen** treffen: der Wert wird
+> nur dann aus der Datenbank gelesen, wenn `registration_enabled` dort tatsächlich
+> steht, und der Default greift genau dann, wenn die Zeile fehlt. Eine Instanz, die
+> die Admin-Einstellungen **noch nie gespeichert** hat, hat keine solche Zeile und
+> ist nach dem Update bis zu einem expliziten Aktivieren in `/admin` geschlossen.
+> Wer die Einstellungen bereits gespeichert hat, behält den dort gespeicherten Wert.
+> Der erste Benutzer bleibt immer registrierbar, eine frische Instanz ist damit
+> unverändert installierbar.
 
 Behobene Befunde aus dem externen Sicherheitsaudit:
 

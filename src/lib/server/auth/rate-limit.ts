@@ -127,10 +127,9 @@ export function clearLoginFailures(account: string): void {
  * to exhaust the login allowance of the real host, and repeated typos on /login must
  * not lock a legitimate new user out of /register.
  *
- * Keyed by the submitted account identifier for the same NAT reason as above. The
- * namespace tag is mixed into the digest rather than prepended to the stored value,
- * so `account_hash` stays a plain hex SHA-256 and the regression test that proves no
- * raw address ever reaches this table keeps holding.
+ * The namespace tag is mixed into the digest rather than prepended to the stored
+ * value, so `account_hash` stays a plain hex SHA-256 and the regression test that
+ * proves no raw address ever reaches this table keeps holding.
  *
  * REGISTER_MAX / REGISTER_WINDOW_MS are declared at the top of this file, next to
  * the login constants, so MAX_WINDOW_MS can span both namespaces.
@@ -140,6 +139,76 @@ function registerHash(account: string): string {
 		.createHash('sha256')
 		.update(`register:${account.trim().toLowerCase()}`)
 		.digest('hex');
+}
+
+/**
+ * Ceiling for registration attempts that come from ONE network address, regardless of
+ * how many different addresses they claim to register.
+ *
+ * Why this is keyed by IP when everything else in this file is not: the per-account
+ * counter above only bounds abuse of a single address, so an attacker rotating
+ * throwaway addresses - the actual goal of automated account creation - never trips
+ * it. There is no identity that survives an attacker who controls both the addresses
+ * and the client, so the network address is the only remaining grouping key.
+ *
+ * The limit is deliberately far above any plausible real-world burst: a whole
+ * school registering behind one NAT must not be locked out, so the ceiling is
+ * generous relative to the per-account limit and only bites on scripted volume.
+ */
+export const REGISTER_IP_MAX = 50;
+export const REGISTER_IP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function registerIpHash(ip: string): string {
+	return crypto.createHash('sha256').update(`register-ip:${ip}`).digest('hex');
+}
+
+export function checkRegisterIpRateLimit(ip: string | null): RateLimitStatus {
+	// No client address to group by (direct socket, no proxy headers). The per-account
+	// counter still applies, so this degrades to the weaker-but-nonzero protection
+	// rather than skipping throttling entirely.
+	if (!ip) {
+		return { blocked: false, remaining: REGISTER_IP_MAX, retryAfterSeconds: 0 };
+	}
+
+	const ipHash = registerIpHash(ip);
+	const now = Date.now();
+	pruneOldAttempts(ipHash, now, REGISTER_IP_WINDOW_MS);
+
+	const row = getDb()
+		.prepare(
+			`SELECT COUNT(*) AS failures, MAX(attempted_at) AS last_attempt
+      FROM login_attempts
+      WHERE account_hash = ? AND attempted_at >= ?`
+		)
+		.get(ipHash, now - REGISTER_IP_WINDOW_MS) as
+		{ failures: number; last_attempt: number | null } | undefined;
+
+	const failures = row?.failures || 0;
+	if (failures < REGISTER_IP_MAX) {
+		return { blocked: false, remaining: REGISTER_IP_MAX - failures, retryAfterSeconds: 0 };
+	}
+
+	const windowEnd = (row?.last_attempt || now) + REGISTER_IP_WINDOW_MS;
+	return {
+		blocked: true,
+		remaining: 0,
+		retryAfterSeconds: Math.max(1, Math.ceil((windowEnd - now) / 1000))
+	};
+}
+
+export function recordRegisterIpAttempt(ip: string | null): void {
+	if (!ip) return;
+
+	const ipHash = registerIpHash(ip);
+	const now = Date.now();
+	getDb()
+		.prepare('INSERT INTO login_attempts (account_hash, attempted_at) VALUES (?, ?)')
+		.run(ipHash, now);
+
+	pruneOldAttempts(ipHash, now, REGISTER_IP_WINDOW_MS);
+	getDb()
+		.prepare('DELETE FROM login_attempts WHERE attempted_at < ?')
+		.run(now - MAX_WINDOW_MS);
 }
 
 export function checkRegisterRateLimit(account: string): RateLimitStatus {
