@@ -220,6 +220,49 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_login_attempts_account ON login_attempts(account_hash, attempted_at);
 `
+	],
+	[
+		'006_guest_rate_limit.sql',
+		`
+-- Abuse throttling for the public, unauthenticated guest paths (invitation page
+-- actions: RSVP, wall posts, poll votes, upload session creation).
+--
+-- Keyed by a hash of the per-event device token, never by IP: every guest of one
+-- school sits behind a single shared public IP, so a per-IP limit would lock out
+-- the entire audience after a handful of legitimate actions. This is the same
+-- reasoning as login_attempts in 005, applied to guests.
+CREATE TABLE IF NOT EXISTS guest_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id TEXT NOT NULL,
+  device_token_hash TEXT NOT NULL,
+  attempted_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_guest_attempts_device
+  ON guest_attempts(event_id, device_token_hash, attempted_at);
+`
+	],
+	[
+		'007_guest_attempt_budget.sql',
+		`
+-- Namespaces the guest throttle by budget.
+--
+-- 006 recorded wall posts, poll votes and upload sessions in one table with no
+-- discriminator, so the two counters counted the same rows. A guest who spent their
+-- legal upload budget also lost half of their wall-post budget, and 20 wall posts
+-- blocked uploads although the upload allowance was untouched.
+--
+-- The budget tag is what makes the two allowances independent. Existing rows are
+-- attributed to 'write', the default and widest budget, so an upgrade cannot hand
+-- anyone a fresh allowance mid-window.
+--
+-- Existing migrations are never modified, so this is additive and works both on a
+-- fresh install (006 then 007) and on a database that already ran 006.
+ALTER TABLE guest_attempts ADD COLUMN budget TEXT NOT NULL DEFAULT 'write';
+
+CREATE INDEX IF NOT EXISTS idx_guest_attempts_budget
+  ON guest_attempts(event_id, device_token_hash, budget, attempted_at);
+`
 	]
 ];
 

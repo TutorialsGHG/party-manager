@@ -8,6 +8,7 @@ import {
 } from '$lib/server/db/repositories/guest.repository.js';
 import { SettingsRepository } from '$lib/server/db/repositories/settings.repository.js';
 import { MediaRepository } from '$lib/server/db/repositories/media.repository.js';
+import { checkGuestRateLimit, recordGuestAttempt } from '$lib/server/auth/guest-rate-limit.js';
 
 const TUS_VERSION = '1.0.0';
 const MAX_UPLOAD_SIZE = 1024 * 1024 * 1024; // 1 GiB
@@ -56,6 +57,9 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const mimeType = metadata.filetype || 'application/octet-stream';
 
 	let uploaderGuestId: string | null = null;
+	// Set only on the guest branch. Hosts are authenticated and bounded by the
+	// per-event quota instead, so they are deliberately not rate limited here.
+	let uploaderDeviceToken: string | null = null;
 
 	// 1. Check if authenticated host
 	if (locals.user) {
@@ -73,9 +77,23 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 			metadata.guestToken || request.headers.get('x-guest-token') || cookies.get(cookieName);
 
 		if (guestToken) {
+			// Heavier than a wall post, so it gets the tighter upload budget: opening a
+			// session reserves quota (see below) and the client may abandon it without
+			// ever sending a chunk, so unlimited session creation is the cheapest way to
+			// churn the quota check. Throttled per device token for the same NAT reason
+			// as every other guest counter.
+			const rateLimit = checkGuestRateLimit(eventId, guestToken, 'upload');
+			if (rateLimit.blocked) {
+				throw error(
+					429,
+					`Zu viele Upload-Sitzungen. Bitte in ${Math.ceil(rateLimit.retryAfterSeconds / 60)} Minuten erneut versuchen.`
+				);
+			}
+
 			const guest = findGuestByDeviceToken(eventId, guestToken);
 			if (guest) {
 				uploaderGuestId = guest.id;
+				uploaderDeviceToken = guestToken;
 			}
 		}
 	}
@@ -116,6 +134,14 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 		filename,
 		mimeType
 	});
+
+	// Counted only after the session actually exists, so a request rejected by the
+	// size or quota check above does not consume the guest's upload budget.
+	// Recorded against the 'upload' budget to match the check above: an upload must
+	// not debit the wall-post allowance, and vice versa.
+	if (uploaderDeviceToken) {
+		recordGuestAttempt(eventId, uploaderDeviceToken, 'upload');
+	}
 
 	return new Response(null, {
 		status: 201,

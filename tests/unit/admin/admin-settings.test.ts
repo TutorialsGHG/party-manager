@@ -32,7 +32,10 @@ describe('Admin, Settings & User Management Modules', () => {
 
 	it('loads default settings when table is empty', () => {
 		const settings = SettingsRepository.getAllSettings();
-		expect(settings.registrationEnabled).toBe(true);
+		// Registration is opt-in (Tier 1 hardening): the first user can always
+		// register, everyone after that needs an explicit admin decision. Enabling
+		// it is a deliberate choice in /admin, not the out-of-the-box state.
+		expect(settings.registrationEnabled).toBe(false);
 		expect(settings.maxUploadSizeMb).toBe(500);
 		expect(settings.quotaPerEventMb).toBe(5000);
 		expect(settings.smtpPort).toBe(587);

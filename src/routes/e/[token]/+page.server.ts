@@ -1,10 +1,11 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, type ActionFailure } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import crypto from 'node:crypto';
 import { findEventByToken } from '$lib/server/db/repositories/event.repository';
 import {
 	findGuestByDeviceToken,
-	registerGuest
+	registerGuest,
+	type GuestData
 } from '$lib/server/db/repositories/guest.repository';
 import {
 	findRsvpByGuestId,
@@ -32,9 +33,73 @@ import {
 	getOrCreateCompanionInvite,
 	listCompanionInvitesForOwner
 } from '$lib/server/db/repositories/companion-invite.repository';
+import {
+	checkGuestRateLimit,
+	recordGuestAttempt,
+	type GuestBudget
+} from '$lib/server/auth/guest-rate-limit';
 
 const GUEST_COOKIE_PREFIX = 'dev_tok_';
 const COMPANION_COOKIE_PREFIX = 'comp_inv_';
+
+/**
+ * Resolves the guest for a mutating action on the public invitation page and applies
+ * the per-device abuse throttle (Tier 1 hardening).
+ *
+ * Every guest action used to be unthrottled, so anyone holding an invite link could
+ * script wall posts, poll votes and RSVP changes without limit. The throttle is keyed
+ * on the device token rather than the IP, because all guests of one school share a
+ * single public IP and a per-IP limit would lock out the whole audience.
+ *
+ * Returns a discriminated union so callers narrow via `if (!auth.ok)` and get a
+ * non-null `guest` without an assertion. Call `recordGuestAttempt` only after the
+ * action actually performed the mutation, so a rejected submission does not consume
+ * the guest's budget.
+ *
+ * `limit` defaults to GUEST_WRITE_MAX; heavier actions (upload session creation) pass
+ * the tighter GUEST_UPLOAD_MAX. Both counters are recorded in the same table, so a
+ * single call records against whichever budget the caller checked.
+ *
+ * `failure` is typed as ActionFailure<unknown> rather than a concrete `fail()`
+ * return on purpose: annotating it with the union of every action's payload made
+ * SvelteKit infer `form` as `{}` for the whole page, which broke the companion-token
+ * read in +page.svelte. Spreading `auth.failure` keeps each action's own payload
+ * shape intact.
+ */
+type GuestAuthResult =
+	| { ok: true; guest: GuestData; deviceToken: string }
+	| { ok: false; failure: ActionFailure<{ error: string }> };
+
+async function authorizeGuestAction(
+	eventId: string,
+	cookies: { get: (name: string) => string | undefined },
+	deviceToken: string | undefined,
+	budget: GuestBudget = 'write'
+): Promise<GuestAuthResult> {
+	const token = deviceToken || cookies.get(`${GUEST_COOKIE_PREFIX}${eventId.slice(0, 8)}`);
+	if (!token) {
+		return { ok: false, failure: fail(400, { error: 'Kein Gerätezugriff.' }) };
+	}
+
+	const rateLimit = checkGuestRateLimit(eventId, token, budget);
+	if (rateLimit.blocked) {
+		return {
+			ok: false,
+			failure: fail(429, {
+				error: `Zu viele Aktionen. Bitte in ${Math.ceil(
+					rateLimit.retryAfterSeconds / 60
+				)} Minuten erneut versuchen.`
+			})
+		};
+	}
+
+	const guest = findGuestByDeviceToken(eventId, token);
+	if (!guest) {
+		return { ok: false, failure: fail(403, { error: 'Keine Berechtigung.' }) };
+	}
+
+	return { ok: true, guest, deviceToken: token };
+}
 
 export const load: PageServerLoad = async ({ params, url, cookies, setHeaders }) => {
 	setHeaders({
@@ -121,6 +186,29 @@ export const actions: Actions = {
 			});
 		}
 
+		// Throttled because this is the entry point that mints the guest row, and
+		// registerGuest() is only idempotent per device token. A client that keeps its
+		// cookie re-uses one guest; a client that discards cookies gets a fresh token and
+		// therefore a fresh guest row per request.
+		//
+		// Known limitation, stated rather than papered over: that second case is not
+		// actually bounded by this check, because each cookie-less request also gets a
+		// new counter key. Closing it would require an identity that survives a missing
+		// cookie, and the only candidates are IP (locks out an entire school behind one
+		// NAT address - the reason this whole module keys on device tokens) or a
+		// proof-of-work challenge. For a self-hosted party app the guest row is a single
+		// small insert, so the residual cost is disk rows, not data exposure; the
+		// mutation paths that actually matter (RSVP, wall, polls, uploads) all require
+		// the existing guest and are bounded.
+		const nameRateLimit = checkGuestRateLimit(event.id, deviceToken);
+		if (nameRateLimit.blocked) {
+			return fail(429, {
+				error: `Zu viele Aktionen. Bitte in ${Math.ceil(
+					nameRateLimit.retryAfterSeconds / 60
+				)} Minuten erneut versuchen.`
+			});
+		}
+
 		const formData = await request.formData();
 		const name = String(formData.get('name') || '').trim();
 
@@ -140,6 +228,9 @@ export const actions: Actions = {
 		) {
 			cookies.delete(`${COMPANION_COOKIE_PREFIX}${event.id.slice(0, 8)}`, { path: '/' });
 		}
+
+		// Counted after the guest was written, so a rejected name does not burn budget.
+		recordGuestAttempt(event.id, deviceToken);
 		return { success: true, guest };
 	},
 
@@ -150,6 +241,20 @@ export const actions: Actions = {
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
 		if (!deviceToken) throw error(400, 'Kein Gerätezugriff.');
+
+		// Throttle before the guest is created. This action is the cheapest to script
+		// (a POST of four fields) and it is also the entry point that mints a guest row,
+		// so leaving it open would let a single device enrol unlimited guests and churn
+		// the RSVP table. `authorizeGuestAction` cannot be reused here because it
+		// requires an existing guest, and this action is what creates it.
+		const rsvpRateLimit = checkGuestRateLimit(event.id, deviceToken);
+		if (rsvpRateLimit.blocked) {
+			return fail(429, {
+				error: `Zu viele Aktionen. Bitte in ${Math.ceil(
+					rsvpRateLimit.retryAfterSeconds / 60
+				)} Minuten erneut versuchen.`
+			});
+		}
 
 		let guest = findGuestByDeviceToken(event.id, deviceToken);
 		const formData = await request.formData();
@@ -182,6 +287,10 @@ export const actions: Actions = {
 			companionNames: parsed.data.companionNames
 		});
 
+		// Recorded only after the RSVP was actually written, so a rejected or malformed
+		// submission does not consume the guest's budget.
+		recordGuestAttempt(event.id, deviceToken);
+
 		if (parsed.data.status === 'yes' && rsvp.companionCount > 0) {
 			const companionName = parsed.data.companionNames?.trim() || 'Begleitperson';
 			getOrCreateCompanionInvite(event.id, guest.id, companionName);
@@ -208,6 +317,18 @@ export const actions: Actions = {
 			rsvp.companionNames?.trim() ||
 			'Begleitperson';
 
+		// Throttled, but without consuming budget: getOrCreateCompanionInvite is
+		// idempotent per guest, so a repeat call is a read, not new abuse. The check
+		// still stops a guest who is already over budget from hammering the action.
+		const inviteRateLimit = checkGuestRateLimit(event.id, deviceToken!);
+		if (inviteRateLimit.blocked) {
+			return fail(429, {
+				error: `Zu viele Aktionen. Bitte in ${Math.ceil(
+					inviteRateLimit.retryAfterSeconds / 60
+				)} Minuten erneut versuchen.`
+			});
+		}
+
 		const companionToken = getOrCreateCompanionInvite(event.id, guest.id, companionName);
 		return { success: true, companionToken };
 	},
@@ -218,8 +339,8 @@ export const actions: Actions = {
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
-		const guest = deviceToken ? findGuestByDeviceToken(event.id, deviceToken) : null;
-		if (!guest) return fail(400, { error: 'Bitte gib zuerst deinen Namen ein.' });
+		const auth = await authorizeGuestAction(event.id, cookies, deviceToken);
+		if (!auth.ok) return auth.failure;
 
 		const formData = await request.formData();
 		const content = String(formData.get('content') || '').trim();
@@ -227,7 +348,8 @@ export const actions: Actions = {
 			return fail(400, { error: 'Beitrag darf nicht leer sein (max. 2000 Zeichen).' });
 		}
 
-		const post = createWallPost(event.id, guest.id, content);
+		const post = createWallPost(event.id, auth.guest.id, content);
+		recordGuestAttempt(event.id, auth.deviceToken);
 		sseHub.broadcast(event.id, 'wall:new', post);
 		return { success: true, post };
 	},
@@ -238,14 +360,15 @@ export const actions: Actions = {
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
-		const guest = deviceToken ? findGuestByDeviceToken(event.id, deviceToken) : null;
-		if (!guest) return fail(400, { error: 'Keine Berechtigung.' });
+		const auth = await authorizeGuestAction(event.id, cookies, deviceToken);
+		if (!auth.ok) return auth.failure;
 
 		const formData = await request.formData();
 		const postId = String(formData.get('postId') || '');
 
-		const deleted = deleteWallPost(postId, event.id, guest.id);
+		const deleted = deleteWallPost(postId, event.id, auth.guest.id);
 		if (deleted) {
+			recordGuestAttempt(event.id, auth.deviceToken);
 			sseHub.broadcast(event.id, 'wall:delete', { postId });
 		}
 		return { success: deleted };
@@ -257,15 +380,16 @@ export const actions: Actions = {
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
-		const guest = deviceToken ? findGuestByDeviceToken(event.id, deviceToken) : null;
-		if (!guest) return fail(400, { error: 'Bitte gib zuerst deinen Namen ein.' });
+		const auth = await authorizeGuestAction(event.id, cookies, deviceToken);
+		if (!auth.ok) return auth.failure;
 
 		const formData = await request.formData();
 		const pollId = String(formData.get('pollId') || '');
 		const optionIds = formData.getAll('optionId').map(String);
 
-		const success = votePoll(pollId, guest.id, optionIds, event.id);
+		const success = votePoll(pollId, auth.guest.id, optionIds, event.id);
 		if (success) {
+			recordGuestAttempt(event.id, auth.deviceToken);
 			sseHub.broadcast(event.id, 'poll:vote', { pollId });
 		}
 		return { success };
@@ -277,8 +401,8 @@ export const actions: Actions = {
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
-		const guest = deviceToken ? findGuestByDeviceToken(event.id, deviceToken) : null;
-		if (!guest) return fail(400, { error: 'Bitte gib zuerst deinen Namen ein.' });
+		const auth = await authorizeGuestAction(event.id, cookies, deviceToken);
+		if (!auth.ok) return auth.failure;
 
 		const formData = await request.formData();
 		const pollId = String(formData.get('pollId') || '');
@@ -295,10 +419,11 @@ export const actions: Actions = {
 			return fail(404, { error: 'Umfrage nicht gefunden.' });
 		}
 
-		const opt = addPollOption(pollId, event.id, text, guest.id);
+		const opt = addPollOption(pollId, event.id, text, auth.guest.id);
 		if (!opt) {
 			return fail(404, { error: 'Umfrage nicht gefunden.' });
 		}
+		recordGuestAttempt(event.id, auth.deviceToken);
 		sseHub.broadcast(event.id, 'poll:update', { pollId });
 		return { success: true, opt };
 	}

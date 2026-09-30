@@ -13,6 +13,10 @@ import { getDb } from '../db/client';
 export const LOGIN_MAX_FAILURES = 5;
 export const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
+// Declared up here because MAX_WINDOW_MS below spans both namespaces.
+export const REGISTER_MAX = 5;
+export const REGISTER_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
 /**
  * Hashes the account identifier for the attempt log. The email itself is stored
  * encrypted in the users table; here we only keep a non-reversible digest so the
@@ -22,10 +26,25 @@ function hashAccount(account: string): string {
 	return crypto.createHash('sha256').update(account.trim().toLowerCase()).digest('hex');
 }
 
-function pruneOldAttempts(accountHash: string, now: number): void {
+/**
+ * The widest window any counter in this table uses. The opportunistic global sweep
+ * below may only delete rows older than this: it deletes across all namespaces, so
+ * pruning with a shorter window would silently expire another counter's rows.
+ */
+const MAX_WINDOW_MS = Math.max(LOGIN_WINDOW_MS, REGISTER_WINDOW_MS);
+
+/**
+ * Drops the expired rows of ONE account in ONE namespace.
+ *
+ * `windowMs` is a parameter and not a constant on purpose. This function is shared by
+ * the login counter (15 min) and the registration counter (1 h); a hardcoded
+ * LOGIN_WINDOW_MS made the registration prune delete rows the registration check
+ * still intended to count, so the 1 h limit effectively acted as 15 min.
+ */
+function pruneOldAttempts(accountHash: string, now: number, windowMs: number): void {
 	getDb()
 		.prepare('DELETE FROM login_attempts WHERE account_hash = ? AND attempted_at < ?')
-		.run(accountHash, now - LOGIN_WINDOW_MS);
+		.run(accountHash, now - windowMs);
 }
 
 export interface RateLimitStatus {
@@ -41,7 +60,7 @@ export function checkLoginRateLimit(account: string): RateLimitStatus {
 	const accountHash = hashAccount(account);
 	const now = Date.now();
 
-	pruneOldAttempts(accountHash, now);
+	pruneOldAttempts(accountHash, now, LOGIN_WINDOW_MS);
 
 	const row = getDb()
 		.prepare(
@@ -85,8 +104,12 @@ export function recordLoginFailure(account: string): void {
 
 	// Keep the table bounded: drop anything past the window for this account and
 	// opportunistically purge other stale rows.
-	pruneOldAttempts(accountHash, Date.now());
-	db.prepare('DELETE FROM login_attempts WHERE attempted_at < ?').run(Date.now() - LOGIN_WINDOW_MS);
+	//
+	// The global sweep must use MAX_WINDOW_MS, not LOGIN_WINDOW_MS: it spans both
+	// namespaces, and pruning with the shorter login window would delete registration
+	// rows that the 1 h registration window still has to count.
+	pruneOldAttempts(accountHash, Date.now(), LOGIN_WINDOW_MS);
+	db.prepare('DELETE FROM login_attempts WHERE attempted_at < ?').run(Date.now() - MAX_WINDOW_MS);
 }
 
 /**
@@ -94,4 +117,143 @@ export function recordLoginFailure(account: string): void {
  */
 export function clearLoginFailures(account: string): void {
 	getDb().prepare('DELETE FROM login_attempts WHERE account_hash = ?').run(hashAccount(account));
+}
+
+/**
+ * Registration throttling (Tier 1 hardening).
+ *
+ * Separate from the login counter because they defend against different abuse and
+ * must not share a budget: an attacker creating throwaway accounts must not be able
+ * to exhaust the login allowance of the real host, and repeated typos on /login must
+ * not lock a legitimate new user out of /register.
+ *
+ * The namespace tag is mixed into the digest rather than prepended to the stored
+ * value, so `account_hash` stays a plain hex SHA-256 and the regression test that
+ * proves no raw address ever reaches this table keeps holding.
+ *
+ * REGISTER_MAX / REGISTER_WINDOW_MS are declared at the top of this file, next to
+ * the login constants, so MAX_WINDOW_MS can span both namespaces.
+ */
+function registerHash(account: string): string {
+	return crypto
+		.createHash('sha256')
+		.update(`register:${account.trim().toLowerCase()}`)
+		.digest('hex');
+}
+
+/**
+ * Ceiling for registration attempts that come from ONE network address, regardless of
+ * how many different addresses they claim to register.
+ *
+ * Why this is keyed by IP when everything else in this file is not: the per-account
+ * counter above only bounds abuse of a single address, so an attacker rotating
+ * throwaway addresses - the actual goal of automated account creation - never trips
+ * it. There is no identity that survives an attacker who controls both the addresses
+ * and the client, so the network address is the only remaining grouping key.
+ *
+ * The limit is deliberately far above any plausible real-world burst: a whole
+ * school registering behind one NAT must not be locked out, so the ceiling is
+ * generous relative to the per-account limit and only bites on scripted volume.
+ */
+export const REGISTER_IP_MAX = 50;
+export const REGISTER_IP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function registerIpHash(ip: string): string {
+	return crypto.createHash('sha256').update(`register-ip:${ip}`).digest('hex');
+}
+
+export function checkRegisterIpRateLimit(ip: string | null): RateLimitStatus {
+	// No client address to group by (direct socket, no proxy headers). The per-account
+	// counter still applies, so this degrades to the weaker-but-nonzero protection
+	// rather than skipping throttling entirely.
+	if (!ip) {
+		return { blocked: false, remaining: REGISTER_IP_MAX, retryAfterSeconds: 0 };
+	}
+
+	const ipHash = registerIpHash(ip);
+	const now = Date.now();
+	pruneOldAttempts(ipHash, now, REGISTER_IP_WINDOW_MS);
+
+	const row = getDb()
+		.prepare(
+			`SELECT COUNT(*) AS failures, MAX(attempted_at) AS last_attempt
+      FROM login_attempts
+      WHERE account_hash = ? AND attempted_at >= ?`
+		)
+		.get(ipHash, now - REGISTER_IP_WINDOW_MS) as
+		{ failures: number; last_attempt: number | null } | undefined;
+
+	const failures = row?.failures || 0;
+	if (failures < REGISTER_IP_MAX) {
+		return { blocked: false, remaining: REGISTER_IP_MAX - failures, retryAfterSeconds: 0 };
+	}
+
+	const windowEnd = (row?.last_attempt || now) + REGISTER_IP_WINDOW_MS;
+	return {
+		blocked: true,
+		remaining: 0,
+		retryAfterSeconds: Math.max(1, Math.ceil((windowEnd - now) / 1000))
+	};
+}
+
+export function recordRegisterIpAttempt(ip: string | null): void {
+	if (!ip) return;
+
+	const ipHash = registerIpHash(ip);
+	const now = Date.now();
+	getDb()
+		.prepare('INSERT INTO login_attempts (account_hash, attempted_at) VALUES (?, ?)')
+		.run(ipHash, now);
+
+	pruneOldAttempts(ipHash, now, REGISTER_IP_WINDOW_MS);
+	getDb()
+		.prepare('DELETE FROM login_attempts WHERE attempted_at < ?')
+		.run(now - MAX_WINDOW_MS);
+}
+
+export function checkRegisterRateLimit(account: string): RateLimitStatus {
+	const accountHash = registerHash(account);
+	const now = Date.now();
+
+	pruneOldAttempts(accountHash, now, REGISTER_WINDOW_MS);
+
+	const row = getDb()
+		.prepare(
+			`SELECT COUNT(*) AS failures, MAX(attempted_at) AS last_attempt
+      FROM login_attempts
+      WHERE account_hash = ? AND attempted_at >= ?`
+		)
+		.get(accountHash, now - REGISTER_WINDOW_MS) as
+		{ failures: number; last_attempt: number | null } | undefined;
+
+	const failures = row?.failures || 0;
+	if (failures < REGISTER_MAX) {
+		return {
+			blocked: false,
+			remaining: REGISTER_MAX - failures,
+			retryAfterSeconds: 0
+		};
+	}
+
+	const windowEnd = (row?.last_attempt || now) + REGISTER_WINDOW_MS;
+	return {
+		blocked: true,
+		remaining: 0,
+		retryAfterSeconds: Math.max(1, Math.ceil((windowEnd - now) / 1000))
+	};
+}
+
+export function recordRegisterAttempt(account: string): void {
+	const accountHash = registerHash(account);
+	const db = getDb();
+
+	db.prepare('INSERT INTO login_attempts (account_hash, attempted_at) VALUES (?, ?)').run(
+		accountHash,
+		Date.now()
+	);
+
+	pruneOldAttempts(accountHash, Date.now(), REGISTER_WINDOW_MS);
+	getDb()
+		.prepare('DELETE FROM login_attempts WHERE attempted_at < ?')
+		.run(Date.now() - MAX_WINDOW_MS);
 }
