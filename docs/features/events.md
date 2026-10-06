@@ -44,10 +44,15 @@ anderen Events desselben Hosts nicht durchschlägt.
 
 - GastNotizen (Feld "Notizen oder Allergien" auf der Einladungsseite)
 
-`rsvps.notes_cipher` wurde bisher geschrieben, aber von **niemandem** gelesen:
-die Gäste können Notizen und Allergien angeben, und der Gastgeber hatte keine
-Möglichkeit, sie zu sehen. Für eine Veranstaltung mit Catering ist genau das
-der wichtigste Wert im ganzen Formular.
+`rsvps.notes_cipher` wurde bisher nur vom Gast **selbst** wieder eingelesen
+(`findRsvpByGuestId`, damit das Formular den Wert vorbelegt). Für den Gastgeber
+war das Feld unlesbar: die Gäste können Notizen und Allergien angeben, und er
+hatte keine Möglichkeit, sie zu sehen. Für eine Veranstaltung mit Catering ist
+genau das der wichtigste Wert im ganzen Formular.
+
+Die Einladungsseite liefert dabei weiterhin ausschließlich die **eigene** Notiz
+des jeweiligen Gasts aus — eine Notiz eines anderen Gasts wird dort nicht
+ausgeliefert.
 
 **Verschlüsselungsdetails:** `companion_names_cipher` und `notes_cipher`
 werden mit der AAD der RSVP-_Zeilen_-ID entschlüsselt

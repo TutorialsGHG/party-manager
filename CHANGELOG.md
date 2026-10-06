@@ -15,11 +15,13 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   Aktivitätszähler für Pinnwand und Uploads ausweist. Aktivität eines anderen
   Events des Hosts schlägt nicht durch.
 - **Gastnotizen für den Host:** Das Feld „Notizen oder Allergien" auf der
-  Einladungsseite wurde verschlüsselt gespeichert, aber von niemandem gelesen —
-  der Gastgeber konnte Allergien und Essenswünsche nicht sehen, obwohl die Gäste
-  sie angeben konnten. Die Übersicht weist sie jetzt je Gast aus. Notizen sind
-  weiterhin verschlüsselt (`rsvps:<rsvp-id>:notes` als AAD) und werden nur dem
-  Host des eigenen Events angezeigt.
+  Einladungsseite wurde verschlüsselt gespeichert, aber nur vom Gast selbst wieder
+  eingelesen (`findRsvpByGuestId`, damit das Formular den Wert vorbelegt). Für den
+  Gastgeber war es unlesbar — Allergien und Essenswünsche konnte er nicht sehen,
+  obwohl die Gäste sie angeben konnten. Die Übersicht weist sie jetzt je Gast aus.
+  Notizen bleiben verschlüsselt (`rsvps:<rsvp-id>:notes` als AAD) und werden nur dem
+  Host des eigenen Events angezeigt; auf der Einladungsseite wird weiterhin nur die
+  eigene Notiz des jeweiligen Gasts ausgeliefert.
 
 ### Security
 
