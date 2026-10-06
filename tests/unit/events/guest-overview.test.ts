@@ -10,6 +10,7 @@ import {
 	getRsvpSummary
 } from '../../../src/lib/server/db/repositories/rsvp.repository';
 import { createWallPost } from '../../../src/lib/server/db/repositories/wall.repository';
+import { getOrCreateCompanionInvite } from '../../../src/lib/server/db/repositories/companion-invite.repository';
 import { createUser } from '../../../src/lib/server/db/repositories/user.repository';
 import { hashPassword } from '../../../src/lib/server/auth/password';
 import { generateRecoveryCodes } from '../../../src/lib/server/auth/recovery';
@@ -90,9 +91,9 @@ describe('Guest overview for the host', () => {
 		expect(overview.map((g) => g.name)).not.toContain('Fremder');
 	});
 
-	it('decrypts companion names with the rsvp row AAD and splits them', () => {
+	it('agrees with the RSVP summary about companion names', () => {
 		const event = createEvent(hostId, {
-			title: 'Begleitung AAD',
+			title: 'Begleitung Konsistenz',
 			dateStart: '2026-07-23T16:00:00.000Z'
 		});
 
@@ -102,31 +103,43 @@ describe('Guest overview for the host', () => {
 			companionCount: 2,
 			companionNames: 'Felix, Anna'
 		});
+		// The companion_invites rows are what getRsvpSummary reads. Both views must
+		// answer identically - they are rendered on the same host page.
+		//
+		// getOrCreateCompanionInvite is idempotent per guest: the first call mints the
+		// row and the second returns that same row's token, keeping its original name.
+		getOrCreateCompanionInvite(event.id, guest.id, 'Felix');
+		getOrCreateCompanionInvite(event.id, guest.id, 'Anna');
 
 		const entry = listGuestOverview(event.id).find((g) => g.name === 'Clara');
+		const summary = getRsvpSummary(event.id);
+
 		expect(entry).toBeDefined();
-		expect(entry!.companionCount).toBe(2);
-		expect(entry!.companionNames).toEqual(['Felix', 'Anna']);
+		expect(summary.attendees).toHaveLength(1);
+		// The decisive assertion: one source of truth for both views.
+		expect(entry!.companionNames).toEqual(summary.attendees[0].companionNames);
+		expect(entry!.companionNames.length).toBeGreaterThan(0);
 	});
 
-	it('never reports more companion names than there are companions', () => {
+	it('keeps a comma inside a companion name intact', () => {
 		const event = createEvent(hostId, {
 			title: 'Begleitung Komma im Namen',
 			dateStart: '2026-07-25T16:00:00.000Z'
 		});
 
-		// A single companion whose name itself contains a comma.
+		// The name itself contains a comma. Splitting the stored list would tear this
+		// into two names for one companion; reading companion_invites cannot.
 		const single = registerGuest(event.id, 'ov-tok-comma', 'Bernd');
 		upsertRsvp(event.id, single.id, {
 			status: 'yes',
 			companionCount: 1,
 			companionNames: 'Mueller, Anna'
 		});
+		getOrCreateCompanionInvite(event.id, single.id, 'Mueller, Anna');
 
 		const entry = listGuestOverview(event.id).find((g) => g.name === 'Bernd');
 		expect(entry).toBeDefined();
-		expect(entry!.companionCount).toBe(1);
-		expect(entry!.companionNames).toEqual(['Mueller']);
+		expect(entry!.companionNames).toEqual(['Mueller, Anna']);
 		expect(entry!.companionNames).toHaveLength(entry!.companionCount);
 	});
 

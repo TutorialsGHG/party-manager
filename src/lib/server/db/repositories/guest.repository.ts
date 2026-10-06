@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { getDb } from '../client';
 import { getEventKey, encryptText, decryptText } from '../../crypto';
+import { listCompanionNamesByOwner } from './companion-invite.repository';
 
 export interface GuestData {
 	id: string;
@@ -184,6 +185,17 @@ export function listGuestOverview(eventId: string): GuestOverviewEntry[] {
 
 	const ek = getEventKey(eventId);
 
+	// Companion names come from companion_invites, NOT from the comma-separated string
+	// in rsvps.companion_names_cipher.
+	//
+	// Splitting that string is untrustworthy in both directions: a name containing a
+	// comma ("Mueller, Anna") tears into two entries, and an empty slot yields fewer
+	// names than there are companions. More importantly, getRsvpSummary() - rendered on
+	// the SAME host page - already reads the names from companion_invites, so the two
+	// views answered differently for identical data. Reading one source removes the
+	// whole class of disagreement.
+	const companionNamesByOwner = listCompanionNamesByOwner(eventId);
+
 	return rows.map((row) => ({
 		guestId: row.id,
 		name: decryptText(row.name_cipher, ek, `guests:${row.id}:name`),
@@ -192,17 +204,7 @@ export function listGuestOverview(eventId: string): GuestOverviewEntry[] {
 		createdAt: row.created_at,
 		status: (row.status ?? null) as GuestOverviewEntry['status'],
 		companionCount: row.companion_count ?? 0,
-		companionNames: row.companion_names_cipher
-			? decryptText(row.companion_names_cipher, ek, `rsvps:${row.rsvp_id}:companion_names`)
-					.split(',')
-					.map((n: string) => n.trim())
-					.filter(Boolean)
-					// The plaintext is a comma-separated list, but a single companion's name
-					// may itself contain a comma ("Mueller, Anna"). companion_count is the
-					// authority on how many companions there are, so cap the split result:
-					// never report more names than there are companions.
-					.slice(0, Math.max(0, row.companion_count ?? 0))
-			: [],
+		companionNames: companionNamesByOwner.get(row.id) || [],
 		// Same AAD rule as companion names: the RSVP row id, not the guest id.
 		// `notes` is what a guest types into "Notizen oder Allergien" on the
 		// invitation page - the host has to be able to read it, and there is no

@@ -61,8 +61,13 @@ Gast-ID. Das ist in den Tests festgeschrieben, weil ein Verwechslen der
 beiden IDs zur Laufzeit einen Entschlüsselungsfehler wirft und nicht zu einem
 stillen Leerwert führt.
 
-**Kommaseparierte Begleitnamen:** Der Klartext von `companion_names_cipher`
-ist eine kommaseparierte Liste. Ein Name, der selbst ein Komma enthält, wird
-dadurch falsch zerlegt. `companion_count` ist deshalb die Autorität: das
-Ergebnis wird darauf begrenzt, sodass nie mehr Namen als Begleitungen
-gemeldet werden.
+**Begleitnamen aus einer einzigen Quelle:** Die Namen der Begleitpersonen liest
+die Übersicht aus `companion_invites` — **nicht** aus dem kommaseparierten
+Klartext in `companion_names_cipher`.
+
+Das ist bewusst so: `getRsvpSummary()` liest sie ebenfalls aus
+`companion_invites`, und beide Karten stehen auf **derselben** Host-Seite. Ein
+Splitten des Chiffretexts ist in beide Richtungen unzuverlässig — ein Name mit
+Komma („Mueller, Anna") zerfällt in zwei Namen, ein leerer Slot ergibt weniger
+Namen als Begleitungen — und die beiden Ansichten widersprächen sich dann für
+identische Daten. Eine gemeinsame Quelle beseitigt die ganze Fehlerklasse.
