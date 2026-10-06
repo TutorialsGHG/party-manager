@@ -2,9 +2,11 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { findEventById } from '$lib/server/db/repositories/event.repository';
 import { findGuestByDeviceToken } from '$lib/server/db/repositories/guest.repository';
+import { findRsvpByGuestId } from '$lib/server/db/repositories/rsvp.repository';
 
 export const GET: RequestHandler = async ({ params, locals, cookies }) => {
 	const eventId = params.id!;
+	const cookieName = `dev_tok_${eventId.slice(0, 8)}`;
 
 	// Authorization mirrors the media routes: either the authenticated host who owns
 	// the event, or a registered guest of that event. Previously the route only
@@ -14,7 +16,6 @@ export const GET: RequestHandler = async ({ params, locals, cookies }) => {
 
 	let isGuest = false;
 	if (!isHost) {
-		const cookieName = `dev_tok_${eventId.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
 		isGuest = !!deviceToken && !!findGuestByDeviceToken(eventId, deviceToken);
 	}
@@ -33,9 +34,30 @@ export const GET: RequestHandler = async ({ params, locals, cookies }) => {
 
 	let cleanup: (() => void) | null = null;
 
+	// Announcements are addressed to the guests who confirmed. The initial page load
+	// filters them server-side, but this stream is long-lived: without a per-connection
+	// check, a guest who declined would still receive every announcement as it is sent.
+	// Resolved once per connection - an RSVP cannot change while the socket is open,
+	// and a per-broadcast database read would tax every live client.
+	const canReceive = (eventType: string): boolean => {
+		if (!eventType.startsWith('announcement:')) return true;
+		if (isHost) return true;
+
+		const cookie = cookies.get(cookieName);
+		if (!cookie) return false;
+		const guest = findGuestByDeviceToken(eventId, cookie);
+		if (!guest) return false;
+
+		const own = findRsvpByGuestId(eventId, guest.id);
+		if (own?.status === 'yes') return true;
+
+		// Companions follow their owner: they are part of that RSVP.
+		return !!guest.isCompanion;
+	};
+
 	const stream = new ReadableStream({
 		start(controller) {
-			cleanup = sseHub.addClient(eventId, controller);
+			cleanup = sseHub.addClient(eventId, controller, canReceive);
 
 			if (!cleanup) {
 				controller.enqueue(`event: error\ndata: {"reason":"capacity"}\n\n`);
