@@ -20,3 +20,49 @@ Verwaltung von Events durch den Host und Zugriff für Gäste über Einladungslin
 
 - Host: Vollzugriff auf eigene Events
 - Gast: Lesezugriff auf Event-Details bei gültigem Token
+
+## 5. Teilnehmende-Übersicht (Host)
+
+`getRsvpSummary` liest ausschliesslich die Tabelle `rsvps`. Ein Gast, der die
+Einladung geöffnet hat, auf der Pinnwand geschrieben oder Fotos hochgeladen hat,
+aber keine Rückmeldung abgegeben hat, ist dort **strukturell unsichtbar** — es
+gibt schlicht keinen Datensatz, über den aggregiert werden könnte.
+
+Deshalb existiert zusätzlich `listGuestOverview(eventId)` in
+`src/lib/server/db/repositories/guest.repository.ts`. Sie liest die Tabelle
+`guests` als führende Tabelle (`LEFT JOIN` auf `rsvps`) und liefert je Gast:
+
+- Namen (entschlüsselt), Host-/Begleit-Markierung, Anlagedatum
+- RSVP-Status oder `null` für "keine Rückmeldung"
+- Begleitpersonen: Anzahl und entschlüsselte Namen
+- Aktivität: Anzahl Pinnwand-Beiträge und Anzahl Uploads
+
+Die Aktivitätszähler kommen aus gruppierten Subqueries, nicht aus Abfragen pro
+Gast, damit die Abfrage unabhängig von der Gästezahl einzelner Round-Trips
+bleibt. Die Subqueries sind auf `event_id` gefiltert, damit Aktivität eines
+anderen Events desselben Hosts nicht durchschlägt.
+
+- GastNotizen (Feld "Notizen oder Allergien" auf der Einladungsseite)
+
+`rsvps.notes_cipher` wurde bisher nur vom Gast **selbst** wieder eingelesen
+(`findRsvpByGuestId`, damit das Formular den Wert vorbelegt). Für den Gastgeber
+war das Feld unlesbar: die Gäste können Notizen und Allergien angeben, und er
+hatte keine Möglichkeit, sie zu sehen. Für eine Veranstaltung mit Catering ist
+genau das der wichtigste Wert im ganzen Formular.
+
+Die Einladungsseite liefert dabei weiterhin ausschließlich die **eigene** Notiz
+des jeweiligen Gasts aus — eine Notiz eines anderen Gasts wird dort nicht
+ausgeliefert.
+
+**Verschlüsselungsdetails:** `companion_names_cipher` und `notes_cipher`
+werden mit der AAD der RSVP-_Zeilen_-ID entschlüsselt
+(`rsvps:<rsvp-id>:companion_names`, `rsvps:<rsvp-id>:notes`), nicht mit der
+Gast-ID. Das ist in den Tests festgeschrieben, weil ein Verwechslen der
+beiden IDs zur Laufzeit einen Entschlüsselungsfehler wirft und nicht zu einem
+stillen Leerwert führt.
+
+**Kommaseparierte Begleitnamen:** Der Klartext von `companion_names_cipher`
+ist eine kommaseparierte Liste. Ein Name, der selbst ein Komma enthält, wird
+dadurch falsch zerlegt. `companion_count` ist deshalb die Autorität: das
+Ergebnis wird darauf begrenzt, sodass nie mehr Namen als Begleitungen
+gemeldet werden.

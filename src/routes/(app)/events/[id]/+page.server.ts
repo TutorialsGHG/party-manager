@@ -19,7 +19,7 @@ import {
 	listPollsForEvent,
 	toggleClosePoll
 } from '$lib/server/db/repositories/poll.repository';
-import { registerGuest } from '$lib/server/db/repositories/guest.repository';
+import { registerGuest, listGuestOverview } from '$lib/server/db/repositories/guest.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { config } from '$lib/server/config/env';
 import { mediaQueue } from '$lib/server/media/queue';
@@ -35,6 +35,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const mediaItems = MediaRepository.listByEvent(event.id);
 	const wallPosts = listWallPosts(event.id);
 	const polls = listPollsForEvent(event.id);
+	// Guests who never sent an RSVP still matter to the host: they opened the
+	// invitation, posted on the wall or uploaded photos. `getRsvpSummary` is driven
+	// by the rsvps table and therefore structurally blind to them.
+	const guestOverview = listGuestOverview(event.id);
 	const baseUrl = config.baseUrl;
 
 	// The invite token hash is an internal lookup key; it must not be serialized
@@ -44,6 +48,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		event: safeEvent,
 		rsvp,
+		guestOverview,
 		mediaItems,
 		wallPosts,
 		polls,

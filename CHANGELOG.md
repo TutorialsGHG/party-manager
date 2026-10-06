@@ -4,6 +4,25 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ## [Unreleased]
 
+### Added
+
+- **Teilnehmende-Übersicht für den Host:** Die Host-Ansicht zeigte bislang nur
+  Zähler und die Zusagen — wer die Einladung geöffnet hat, geschrieben oder
+  Fotos hochgeladen hat, aber keine Rückmeldung abgibt, war dort unsichtbar.
+  `getRsvpSummary` liest ausschliesslich `rsvps`, für solche Gäste existiert dort
+  gar kein Datensatz. Neu ist `listGuestOverview()`, das `guests` als führende
+  Tabelle liest (LEFT JOIN) und je Gast RSVP-Status, Begleitpersonen sowie
+  Aktivitätszähler für Pinnwand und Uploads ausweist. Aktivität eines anderen
+  Events des Hosts schlägt nicht durch.
+- **Gastnotizen für den Host:** Das Feld „Notizen oder Allergien" auf der
+  Einladungsseite wurde verschlüsselt gespeichert, aber nur vom Gast selbst wieder
+  eingelesen (`findRsvpByGuestId`, damit das Formular den Wert vorbelegt). Für den
+  Gastgeber war es unlesbar — Allergien und Essenswünsche konnte er nicht sehen,
+  obwohl die Gäste sie angeben konnten. Die Übersicht weist sie jetzt je Gast aus.
+  Notizen bleiben verschlüsselt (`rsvps:<rsvp-id>:notes` als AAD) und werden nur dem
+  Host des eigenen Events angezeigt; auf der Einladungsseite wird weiterhin nur die
+  eigene Notiz des jeweiligen Gasts ausgeliefert.
+
 ### Security
 
 - **Offene Registrierung als Default:** `registrationEnabled` war `true`. Damit
