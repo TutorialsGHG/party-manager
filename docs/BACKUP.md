@@ -1,5 +1,13 @@
 ﻿# Backup- und Restore-Leitfaden
 
+> **Getestet.** `tests/unit/security/backup-restore-roundtrip.test.ts` führt den
+> hier beschriebenen Ablauf tatsächlich aus: Er schreibt in einem eigenen Prozess ein
+> Event mit verschlüsselten Feldern, einer RSVP und einem echten verschlüsselten
+> Medien-Blob, kopiert beide Volumes, liest sie in einem **zweiten, völlig frischen
+> Prozess** zurück und vergleicht Titel, Notizen und Blob-Prüfsumme. Ohne
+> `/config` und mit falscher Passphrase muss der Wiederherstellen-Vorgang
+> scheitern — beides ist als Negativtest festgeschrieben.
+
 ## 1. Trennung der Volumes
 
 Die App verwendet zwei getrennte Verzeichnisse/Volumes:
