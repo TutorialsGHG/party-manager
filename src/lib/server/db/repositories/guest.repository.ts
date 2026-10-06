@@ -195,6 +195,11 @@ export function listGuestOverview(eventId: string): GuestOverviewEntry[] {
 					.split(',')
 					.map((n: string) => n.trim())
 					.filter(Boolean)
+					// The plaintext is a comma-separated list, but a single companion's name
+					// may itself contain a comma ("Mueller, Anna"). companion_count is the
+					// authority on how many companions there are, so cap the split result:
+					// never report more names than there are companions.
+					.slice(0, Math.max(0, row.companion_count ?? 0))
 			: [],
 		wallPostCount: row.post_count,
 		uploadCount: row.upload_count

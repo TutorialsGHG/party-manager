@@ -109,6 +109,42 @@ describe('Guest overview for the host', () => {
 		expect(entry!.companionNames).toEqual(['Felix', 'Anna']);
 	});
 
+	it('never reports more companion names than there are companions', () => {
+		const event = createEvent(hostId, {
+			title: 'Begleitung Komma im Namen',
+			dateStart: '2026-07-25T16:00:00.000Z'
+		});
+
+		// A single companion whose name itself contains a comma.
+		const single = registerGuest(event.id, 'ov-tok-comma', 'Bernd');
+		upsertRsvp(event.id, single.id, {
+			status: 'yes',
+			companionCount: 1,
+			companionNames: 'Mueller, Anna'
+		});
+
+		const entry = listGuestOverview(event.id).find((g) => g.name === 'Bernd');
+		expect(entry).toBeDefined();
+		expect(entry!.companionCount).toBe(1);
+		expect(entry!.companionNames).toEqual(['Mueller']);
+		expect(entry!.companionNames).toHaveLength(entry!.companionCount);
+	});
+
+	it('reports no companion names when the companion count is zero', () => {
+		const event = createEvent(hostId, {
+			title: 'Ohne Begleitung',
+			dateStart: '2026-07-26T16:00:00.000Z'
+		});
+
+		const guest = registerGuest(event.id, 'ov-tok-none', 'Ines');
+		upsertRsvp(event.id, guest.id, { status: 'yes' });
+
+		const entry = listGuestOverview(event.id).find((g) => g.name === 'Ines');
+		expect(entry).toBeDefined();
+		expect(entry!.companionCount).toBe(0);
+		expect(entry!.companionNames).toEqual([]);
+	});
+
 	it('returns an empty list for an event without guests', () => {
 		const event = createEvent(hostId, {
 			title: 'Leeres Event',
