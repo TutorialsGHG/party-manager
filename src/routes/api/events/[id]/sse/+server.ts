@@ -2,7 +2,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { findEventById } from '$lib/server/db/repositories/event.repository';
 import { findGuestByDeviceToken } from '$lib/server/db/repositories/guest.repository';
-import { findRsvpByGuestId } from '$lib/server/db/repositories/rsvp.repository';
+import { guestSeesAnnouncements } from '$lib/server/announcements/audience';
 
 export const GET: RequestHandler = async ({ params, locals, cookies }) => {
 	const eventId = params.id!;
@@ -37,22 +37,19 @@ export const GET: RequestHandler = async ({ params, locals, cookies }) => {
 	// Announcements are addressed to the guests who confirmed. The initial page load
 	// filters them server-side, but this stream is long-lived: without a per-connection
 	// check, a guest who declined would still receive every announcement as it is sent.
-	// Resolved once per connection - an RSVP cannot change while the socket is open,
-	// and a per-broadcast database read would tax every live client.
+	//
+	// The predicate is the SAME function the page load uses
+	// (lib/server/announcements/audience.ts). Sharing it is the point: the two used to
+	// disagree, which is how the plaintext ended up on a channel the filter was supposed
+	// to protect. Resolved once per connection - an RSVP cannot change while the socket
+	// is open, and a per-broadcast database read would tax every live client.
 	const canReceive = (eventType: string): boolean => {
 		if (!eventType.startsWith('announcement:')) return true;
 		if (isHost) return true;
 
 		const cookie = cookies.get(cookieName);
 		if (!cookie) return false;
-		const guest = findGuestByDeviceToken(eventId, cookie);
-		if (!guest) return false;
-
-		const own = findRsvpByGuestId(eventId, guest.id);
-		if (own?.status === 'yes') return true;
-
-		// Companions follow their owner: they are part of that RSVP.
-		return !!guest.isCompanion;
+		return guestSeesAnnouncements(eventId, findGuestByDeviceToken(eventId, cookie));
 	};
 
 	const stream = new ReadableStream({

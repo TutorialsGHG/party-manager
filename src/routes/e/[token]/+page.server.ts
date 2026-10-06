@@ -13,6 +13,7 @@ import {
 	getRsvpSummary
 } from '$lib/server/db/repositories/rsvp.repository';
 import { listAnnouncements } from '$lib/server/db/repositories/announcement.repository';
+import { guestSeesAnnouncements } from '$lib/server/announcements/audience';
 import {
 	createWallPost,
 	listWallPosts,
@@ -161,11 +162,13 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 	// Announcements are addressed to the guests who confirmed ("bring drinks by
 	// Friday"). The filter runs on the server, not in the template: a guest who
 	// declined must not receive the content at all, otherwise it would still travel
-	// to their browser in the page payload. Companions follow their owner, because
-	// they are part of that RSVP.
-	const hasConfirmed =
-		rsvp?.status === 'yes' || (!!currentGuest?.isCompanion && !!companionInvites.length);
-	const announcements = hasConfirmed ? listAnnouncements(event.id) : [];
+	// to their browser in the page payload.
+	//
+	// The predicate lives in lib/server/announcements/audience.ts and is shared with the
+	// SSE route, so the page load and the live channel cannot drift apart again.
+	const announcements = guestSeesAnnouncements(event.id, currentGuest)
+		? listAnnouncements(event.id)
+		: [];
 
 	return {
 		event,

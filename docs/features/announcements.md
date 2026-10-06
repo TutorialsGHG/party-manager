@@ -30,21 +30,32 @@ wenn sich eine Rückmeldung später ändert.
 
 ## 4. Berechtigungen — der Kern des Features
 
-Der Audience-Filter läuft **serverseitig** im `load()` der Einladungsseite:
+Der Audience-Filter läuft **serverseitig**, und zwar über **eine einzige
+Funktion**, die Seitenaufruf und SSE-Route gemeinsam benutzen:
+`guestSeesAnnouncements()` in `src/lib/server/announcements/audience.ts`.
 
-```ts
-const hasConfirmed =
-	rsvp?.status === 'yes' || (!!currentGuest?.isCompanion && !!companionInvites.length);
-const announcements = hasConfirmed ? listAnnouncements(event.id) : [];
-```
+Das ist der entscheidende Punkt. Ein Filter im Template würde den Text trotzdem
+in den Seiten-Payload schicken, wo ein Abgesagener ihn im Quelltext findet.
+Serverseitig gefiltert existiert der Inhalt für diesen Gast nicht im Dokument.
 
-Das ist entscheidend: Ein Filter im Template würde den Text trotzdem in den
-Seiten-Payload schicken, wo ein Abgesagener ihn im Quelltext oder in der
-DevTools-Konsole findet. Serverseitig gefiltert existiert der Inhalt für diesen
-Gast überhaupt nicht im Dokument.
+Dass **beide** Wege dieselbe Funktion nutzen, ist keine Formalie: Als die
+Ankündigungen eingeführt wurden, filterte nur der Seitenaufruf — die
+SSE-Route überhaupt nicht prüfte. Ein abgesagener Gast bekam den Klartext daraufhin
+trotzdem in Echtzeit. Zwei Stellen mit derselben Logik sind zwei Stellen, an
+denen sie auseinanderlaufen können.
 
-Begleitpersonen sehen die Ankündigungen, wenn ihr Gastgeber zugesagt hat — sie
-gehören zu dieser Rückmeldung.
+**Begleitpersonen** — der Fall, der eine eigene Begründung braucht: Sie haben
+**nie** eine eigene Rückmeldung, weil `submitRsvp` Begleitpersonen mit einem 403
+ablehnt. „Hat diese Person zugesagt?" ist für sie also nie über den eigenen RSVP
+beantwortbar. Eine erste Fassung hatte dafür einen Begleit-Zweig, der
+**unerreichbar** war (`companionInvites` ist nur gefüllt, wenn der _eigene_
+RSVP „yes" ist) — das Feature war also sicher, aber die zugesagten Begleitungen
+bekamen nichts, obwohl Commit-Text und Karte es versprochen hatten.
+
+Korrekt ist, den **Gastgeber** über die beanspruchte Einladung zu ermitteln:
+`findCompanionOwnerGuestId()` führt von der Begleitperson über
+`guests.companion_invite_id` zu ihrem Gastgeber, und dessen RSVP entscheidet.
+Eine Begleitperson eines Abgesagten bekommt die Nachricht damit korrekt _nicht_.
 
 ## 5. Abgrenzung zur Pinnwand
 
