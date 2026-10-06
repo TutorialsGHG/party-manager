@@ -42,8 +42,22 @@ Gast, damit die Abfrage unabhängig von der Gästezahl einzelner Round-Trips
 bleibt. Die Subqueries sind auf `event_id` gefiltert, damit Aktivität eines
 anderen Events desselben Hosts nicht durchschlägt.
 
-**Verschlüsselungsdetail:** `companion_names_cipher` wird mit der AAD der
-RSVP-_Zeilen_-ID (`rsvps:<rsvp-id>:companion_names`) entschlüsselt, nicht mit
-der Gast-ID. Das ist in den Tests festgeschrieben, weil ein Verwechslen der
+- GastNotizen (Feld "Notizen oder Allergien" auf der Einladungsseite)
+
+`rsvps.notes_cipher` wurde bisher geschrieben, aber von **niemandem** gelesen:
+die Gäste können Notizen und Allergien angeben, und der Gastgeber hatte keine
+Möglichkeit, sie zu sehen. Für eine Veranstaltung mit Catering ist genau das
+der wichtigste Wert im ganzen Formular.
+
+**Verschlüsselungsdetails:** `companion_names_cipher` und `notes_cipher`
+werden mit der AAD der RSVP-_Zeilen_-ID entschlüsselt
+(`rsvps:<rsvp-id>:companion_names`, `rsvps:<rsvp-id>:notes`), nicht mit der
+Gast-ID. Das ist in den Tests festgeschrieben, weil ein Verwechslen der
 beiden IDs zur Laufzeit einen Entschlüsselungsfehler wirft und nicht zu einem
 stillen Leerwert führt.
+
+**Kommaseparierte Begleitnamen:** Der Klartext von `companion_names_cipher`
+ist eine kommaseparierte Liste. Ein Name, der selbst ein Komma enthält, wird
+dadurch falsch zerlegt. `companion_count` ist deshalb die Autorität: das
+Ergebnis wird darauf begrenzt, sodass nie mehr Namen als Begleitungen
+gemeldet werden.

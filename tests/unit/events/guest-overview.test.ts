@@ -152,4 +152,60 @@ describe('Guest overview for the host', () => {
 		});
 		expect(listGuestOverview(event.id)).toEqual([]);
 	});
+
+	it('decrypts the guest notes the host entered as "Notizen oder Allergien"', () => {
+		const event = createEvent(hostId, {
+			title: 'Notizen fuer den Gastgeber',
+			dateStart: '2026-07-27T16:00:00.000Z'
+		});
+
+		const guest = registerGuest(event.id, 'ov-tok-notes', 'Petra');
+		upsertRsvp(event.id, guest.id, {
+			status: 'yes',
+			notes: 'Glutenfrei, keine Nüsse'
+		});
+
+		const entry = listGuestOverview(event.id).find((g) => g.name === 'Petra');
+		expect(entry).toBeDefined();
+		expect(entry!.notes).toBe('Glutenfrei, keine Nüsse');
+	});
+
+	it('keeps notes scoped to their own guest and does not leak across events', () => {
+		const event = createEvent(hostId, {
+			title: 'Notizen Isolation A',
+			dateStart: '2026-07-28T16:00:00.000Z'
+		});
+		const otherEvent = createEvent(hostId, {
+			title: 'Notizen Isolation B',
+			dateStart: '2026-07-29T16:00:00.000Z'
+		});
+
+		const withNotes = registerGuest(event.id, 'ov-tok-n1', 'Mit Notiz');
+		upsertRsvp(event.id, withNotes.id, { status: 'yes', notes: 'Vegan' });
+
+		const withoutNotes = registerGuest(event.id, 'ov-tok-n2', 'Ohne Notiz');
+		upsertRsvp(event.id, withoutNotes.id, { status: 'yes' });
+
+		const foreign = registerGuest(otherEvent.id, 'ov-tok-n3', 'Fremder');
+		upsertRsvp(otherEvent.id, foreign.id, { status: 'yes', notes: 'Fremde Notiz' });
+
+		const overview = listGuestOverview(event.id);
+		expect(overview.find((g) => g.name === 'Mit Notiz')!.notes).toBe('Vegan');
+		expect(overview.find((g) => g.name === 'Ohne Notiz')!.notes).toBe('');
+		expect(overview.map((g) => g.name)).not.toContain('Fremder');
+	});
+
+	it('trims whitespace-only notes to an empty string', () => {
+		const event = createEvent(hostId, {
+			title: 'Leere Notiz',
+			dateStart: '2026-07-30T16:00:00.000Z'
+		});
+
+		const guest = registerGuest(event.id, 'ov-tok-blank', 'Niels');
+		upsertRsvp(event.id, guest.id, { status: 'maybe', notes: '   ' });
+
+		const entry = listGuestOverview(event.id).find((g) => g.name === 'Niels');
+		expect(entry).toBeDefined();
+		expect(entry!.notes).toBe('');
+	});
 });

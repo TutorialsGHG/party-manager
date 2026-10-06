@@ -14,6 +14,12 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   Tabelle liest (LEFT JOIN) und je Gast RSVP-Status, Begleitpersonen sowie
   Aktivitätszähler für Pinnwand und Uploads ausweist. Aktivität eines anderen
   Events des Hosts schlägt nicht durch.
+- **Gastnotizen für den Host:** Das Feld „Notizen oder Allergien" auf der
+  Einladungsseite wurde verschlüsselt gespeichert, aber von niemandem gelesen —
+  der Gastgeber konnte Allergien und Essenswünsche nicht sehen, obwohl die Gäste
+  sie angeben konnten. Die Übersicht weist sie jetzt je Gast aus. Notizen sind
+  weiterhin verschlüsselt (`rsvps:<rsvp-id>:notes` als AAD) und werden nur dem
+  Host des eigenen Events angezeigt.
 
 ### Security
 

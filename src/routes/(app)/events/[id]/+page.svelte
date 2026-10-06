@@ -281,6 +281,9 @@
 							{/if}
 						</div>
 					</div>
+					{#if guest.notes}
+						<p class="guest-note">{guest.notes}</p>
+					{/if}
 				{/each}
 			</div>
 		{/if}
@@ -690,6 +693,16 @@
 	.empty-hint {
 		color: var(--text-secondary);
 		font-size: var(--text-sm);
+	}
+
+	.guest-note {
+		margin: var(--space-1) 0 0;
+		padding-left: var(--space-3);
+		border-left: 2px solid var(--accent-subtle);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 
 	.host-form,

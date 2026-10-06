@@ -136,6 +136,7 @@ export interface GuestOverviewEntry {
 	status: 'yes' | 'maybe' | 'no' | null;
 	companionCount: number;
 	companionNames: string[];
+	notes: string;
 	wallPostCount: number;
 	uploadCount: number;
 }
@@ -158,6 +159,7 @@ export function listGuestOverview(eventId: string): GuestOverviewEntry[] {
 			`
     SELECT g.id, g.name_cipher, g.is_host, g.companion_invite_id, g.created_at,
            r.id AS rsvp_id, r.status, r.companion_count, r.companion_names_cipher,
+           r.notes_cipher,
            COALESCE(w.post_count, 0) AS post_count,
            COALESCE(m.upload_count, 0) AS upload_count
     FROM guests g
@@ -201,6 +203,13 @@ export function listGuestOverview(eventId: string): GuestOverviewEntry[] {
 					// never report more names than there are companions.
 					.slice(0, Math.max(0, row.companion_count ?? 0))
 			: [],
+		// Same AAD rule as companion names: the RSVP row id, not the guest id.
+		// `notes` is what a guest types into "Notizen oder Allergien" on the
+		// invitation page - the host has to be able to read it, and there is no
+		// other reader in the codebase.
+		notes: row.notes_cipher
+			? decryptText(row.notes_cipher, ek, `rsvps:${row.rsvp_id}:notes`).trim()
+			: '',
 		wallPostCount: row.post_count,
 		uploadCount: row.upload_count
 	}));
