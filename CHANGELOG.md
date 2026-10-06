@@ -4,6 +4,17 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ## [Unreleased]
 
+### Added
+
+- **Ankündigungen an die Zusagen:** Der Host konnte bisher nur auf der Pinnwand
+  schreiben, die jeder mit dem Link sieht — „Bitte Getränke bis Freitag
+  mitbringen" erreicht so auch alle, die abgesagt haben. Neu sind
+  `event_announcements` (verschlüsselt, Migration 008) und ein Send-Formular im
+  Event-Panel. Der Audience-Filter läuft **serverseitig** im `load()` der
+  Einladungsseite: wer nicht zugesagt hat, bekommt den Text gar nicht erst in
+  den Seiten-Payload. Ein Filter im Template hätte ihn immer noch ausgeliefert.
+  Ankündigungen erscheinen über der Pinnwand und aktualisieren sich per SSE.
+
 ### Security
 
 - **Offene Registrierung als Default:** `registrationEnabled` war `true`. Damit

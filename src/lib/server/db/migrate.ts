@@ -263,6 +263,31 @@ ALTER TABLE guest_attempts ADD COLUMN budget TEXT NOT NULL DEFAULT 'write';
 CREATE INDEX IF NOT EXISTS idx_guest_attempts_budget
   ON guest_attempts(event_id, device_token_hash, budget, attempted_at);
 `
+	],
+	[
+		'008_event_announcements.sql',
+		`
+-- Host announcements to the guests who confirmed ("bring drinks by Friday").
+--
+-- Content is encrypted with the event key like every other guest-visible payload, so
+-- an announcement is not readable from the database file alone - consistent with the
+-- project's privacy claim rather than being an exception to it.
+--
+-- The audience column is stored so the intent survives even if the RSVP of a guest
+-- changes later: a message sent to the yeses stays with the yeses that existed at
+-- send time.
+CREATE TABLE IF NOT EXISTS event_announcements (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  author_guest_id TEXT NOT NULL REFERENCES guests(id) ON DELETE CASCADE,
+  content_cipher TEXT NOT NULL,
+  audience TEXT NOT NULL DEFAULT 'yes',
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_announcements_event
+  ON event_announcements(event_id, created_at);
+`
 	]
 ];
 

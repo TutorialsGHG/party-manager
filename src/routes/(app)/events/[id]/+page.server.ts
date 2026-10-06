@@ -20,6 +20,11 @@ import {
 	toggleClosePoll
 } from '$lib/server/db/repositories/poll.repository';
 import { registerGuest } from '$lib/server/db/repositories/guest.repository';
+import {
+	createAnnouncement,
+	listAnnouncements,
+	deleteAnnouncement
+} from '$lib/server/db/repositories/announcement.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { config } from '$lib/server/config/env';
 import { mediaQueue } from '$lib/server/media/queue';
@@ -35,6 +40,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const mediaItems = MediaRepository.listByEvent(event.id);
 	const wallPosts = listWallPosts(event.id);
 	const polls = listPollsForEvent(event.id);
+	const announcements = listAnnouncements(event.id);
 	const baseUrl = config.baseUrl;
 
 	// The invite token hash is an internal lookup key; it must not be serialized
@@ -44,6 +50,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		event: safeEvent,
 		rsvp,
+		announcements,
 		mediaItems,
 		wallPosts,
 		polls,
@@ -107,6 +114,34 @@ export const actions: Actions = {
 		const post = createWallPost(event.id, hostGuest.id, content);
 		sseHub.broadcast(event.id, 'wall:new', post);
 		return { success: true };
+	},
+
+	sendAnnouncement: async ({ request, params, locals }) => {
+		const user = requireUser(locals);
+		const event = findEventById(params.id!, user.id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const content = String((await request.formData()).get('content') || '').trim();
+		if (!content || content.length > 500) {
+			return fail(400, { error: 'Ankündigung darf nicht leer sein (max. 500 Zeichen).' });
+		}
+
+		// The author is the host's own guest row, exactly like a host wall post, so
+		// the guest side renders a consistent author without a second code path.
+		const hostGuest = registerGuest(event.id, `host_${user.id}`, 'Host', true);
+		const announcement = createAnnouncement(event.id, hostGuest.id, content);
+		sseHub.broadcast(event.id, 'announcement:new', announcement);
+		return { success: true };
+	},
+
+	deleteAnnouncement: async ({ request, params, locals }) => {
+		const event = findEventById(params.id!, requireUser(locals).id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const announcementId = String((await request.formData()).get('announcementId') || '');
+		const success = deleteAnnouncement(announcementId, event.id);
+		if (success) sseHub.broadcast(event.id, 'announcement:delete', { announcementId });
+		return { success };
 	},
 
 	toggleWallPostPin: async ({ request, params, locals }) => {

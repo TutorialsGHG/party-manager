@@ -12,6 +12,7 @@ import {
 	upsertRsvp,
 	getRsvpSummary
 } from '$lib/server/db/repositories/rsvp.repository';
+import { listAnnouncements } from '$lib/server/db/repositories/announcement.repository';
 import {
 	createWallPost,
 	listWallPosts,
@@ -157,6 +158,15 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 	const polls = listPollsForEvent(event.id, currentGuest?.id);
 	const mediaItems = MediaRepository.listByEvent(event.id).filter((m) => m.status === 'ready');
 
+	// Announcements are addressed to the guests who confirmed ("bring drinks by
+	// Friday"). The filter runs on the server, not in the template: a guest who
+	// declined must not receive the content at all, otherwise it would still travel
+	// to their browser in the page payload. Companions follow their owner, because
+	// they are part of that RSVP.
+	const hasConfirmed =
+		rsvp?.status === 'yes' || (!!currentGuest?.isCompanion && !!companionInvites.length);
+	const announcements = hasConfirmed ? listAnnouncements(event.id) : [];
+
 	return {
 		event,
 		inviteToken: params.token,
@@ -167,7 +177,8 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 		summary,
 		wallPosts,
 		polls,
-		mediaItems
+		mediaItems,
+		announcements
 	};
 };
 

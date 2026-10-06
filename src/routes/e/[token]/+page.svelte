@@ -59,6 +59,7 @@
 	let newPostText = $state('');
 	let isPosting = $state(false);
 	let posts = $state<any[]>([]);
+	let announcements = $state<any[]>([]);
 
 	// Polls state
 	let polls = $state<any[]>([]);
@@ -84,6 +85,7 @@
 		showRsvpEditor = !data.rsvp;
 
 		posts = data.wallPosts || [];
+		announcements = data.announcements || [];
 		polls = data.polls || [];
 		// Wrap in untrack so reading/writing newOptionText doesn't create a reactive
 		// dependency that would cause this $effect to loop infinitely.
@@ -120,6 +122,18 @@
 			if (!posts.some((p) => p.id === newPost.id)) {
 				posts = [newPost, ...posts];
 			}
+		});
+
+		eventSource.addEventListener('announcement:new', (e) => {
+			const announcement = JSON.parse(e.data);
+			if (!announcements.some((a) => a.id === announcement.id)) {
+				announcements = [announcement, ...announcements];
+			}
+		});
+
+		eventSource.addEventListener('announcement:delete', (e) => {
+			const { announcementId } = JSON.parse(e.data);
+			announcements = announcements.filter((a) => a.id !== announcementId);
 		});
 
 		eventSource.addEventListener('wall:delete', (e) => {
@@ -603,6 +617,23 @@
 							</Button>
 						</div>
 					</form>
+				{/if}
+
+				{#if announcements.length > 0}
+					<div class="announcement-stream">
+						<h4 class="list-title">Ankündigungen</h4>
+						{#each announcements as announcement (announcement.id)}
+							<div class="announcement-card">
+								<p>{announcement.content}</p>
+								<span class="post-time"
+									>{formatDate(announcement.createdAt, {
+										dateStyle: 'short',
+										timeStyle: 'short'
+									})}</span
+								>
+							</div>
+						{/each}
+					</div>
 				{/if}
 
 				<div class="posts-stream">
