@@ -14,6 +14,12 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   Tabelle liest (LEFT JOIN) und je Gast RSVP-Status, Begleitpersonen sowie
   Aktivitätszähler für Pinnwand und Uploads ausweist. Aktivität eines anderen
   Events des Hosts schlägt nicht durch.
+- **Begleitnamen aus einer einzigen Quelle gelesen:** Die Übersicht hat sie zuerst
+  aus `rsvps.companion_names_cipher` gesplittet, einem kommaseparierten Klartext.
+  Ein Name mit Komma wurde dadurch zerlegt, und — schlimmer — `getRsvpSummary()`
+  liest dieselben Namen aus `companion_invites` und steht als Zusage-Karte auf
+  derselben Seite: zwei Ansichten widersprachen sich für identische Daten. Beide
+  lesen jetzt dieselbe Quelle, womit die ganze Fehlerklasse entfällt.
 
 ### Security
 

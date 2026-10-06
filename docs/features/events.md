@@ -47,3 +47,14 @@ RSVP-_Zeilen_-ID (`rsvps:<rsvp-id>:companion_names`) entschlüsselt, nicht mit
 der Gast-ID. Das ist in den Tests festgeschrieben, weil ein Verwechslen der
 beiden IDs zur Laufzeit einen Entschlüsselungsfehler wirft und nicht zu einem
 stillen Leerwert führt.
+
+**Begleitnamen aus einer einzigen Quelle:** Die Namen der Begleitpersonen liest
+die Übersicht aus `companion_invites` — **nicht** aus dem kommaseparierten
+Klartext in `companion_names_cipher`.
+
+Das ist bewusst so: `getRsvpSummary()` liest sie ebenfalls aus
+`companion_invites`, und beide Karten stehen auf **derselben** Host-Seite. Ein
+Splitten des Chiffretexts ist in beide Richtungen unzuverlässig — ein Name mit
+Komma („Mueller, Anna") zerfällt in zwei Namen, ein leerer Slot ergibt weniger
+Namen als Begleitungen — und die beiden Ansichten widersprächen sich dann für
+identische Daten. Eine gemeinsame Quelle beseitigt die ganze Fehlerklasse.
