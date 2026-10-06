@@ -4,6 +4,17 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ## [Unreleased]
 
+### Fixed
+
+- **Angepinnte Pinnwand-Beiträge erschienen bei Gästen erst nach einem Reload:**
+  Der Host sendet beim Anpinnen `wall:update`, aber der Gast-Client abonnierte nur
+  `wall:new` und `wall:delete`. Da die Oberfläche in beiden Fällen korrekt rendert,
+  fiel die Lücke nicht auf — der Gast sah den alten Zustand einfach weiter, bis er
+  die Seite neu lud. Der Gast lauscht jetzt auch auf `wall:update` und sortiert
+  lokal neu, exakt in der Reihenfolge von `listWallPosts()`. Damit das nicht
+  erneut passiert, prüft ein neuer Test die Abonnements gegen die tatsächlich
+  gesendeten Broadcasts: ein Wall-Ereignis ohne Gegenstück beim Gast bricht die CI.
+
 ### Security
 
 - **Offene Registrierung als Default:** `registrationEnabled` war `true`. Damit

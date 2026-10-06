@@ -127,6 +127,21 @@
 			posts = posts.filter((p) => p.id !== postId);
 		});
 
+		// The host pinning a post broadcasts 'wall:update' (src/routes/(app)/events/
+		// [id]/+page.server.ts -> toggleWallPostPin). Without this listener the guest
+		// keeps the pre-pin state until a full page reload: the rendered markup is
+		// correct either way, which is exactly why the missing subscription stayed
+		// unnoticed. Re-sort locally instead of invalidating, so a pin does not refetch
+		// the whole page - and match the repository order (is_pinned DESC, created_at DESC).
+		eventSource.addEventListener('wall:update', (e) => {
+			const { postId } = JSON.parse(e.data);
+			posts = posts.map((p) => (p.id === postId ? { ...p, isPinned: !p.isPinned } : p));
+			posts = [...posts].sort((a, b) => {
+				if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+				return b.createdAt - a.createdAt;
+			});
+		});
+
 		const refreshPolls = () => void invalidateAll();
 		eventSource.addEventListener('poll:vote', refreshPolls);
 		eventSource.addEventListener('poll:update', refreshPolls);
