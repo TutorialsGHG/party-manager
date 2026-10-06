@@ -10,10 +10,18 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   Der Host sendet beim Anpinnen `wall:update`, aber der Gast-Client abonnierte nur
   `wall:new` und `wall:delete`. Da die Oberfläche in beiden Fällen korrekt rendert,
   fiel die Lücke nicht auf — der Gast sah den alten Zustand einfach weiter, bis er
-  die Seite neu lud. Der Gast lauscht jetzt auch auf `wall:update` und sortiert
-  lokal neu, exakt in der Reihenfolge von `listWallPosts()`. Damit das nicht
-  erneut passiert, prüft ein neuer Test die Abonnements gegen die tatsächlich
-  gesendeten Broadcasts: ein Wall-Ereignis ohne Gegenstück beim Gast bricht die CI.
+  geladen. Der Gast lauscht jetzt auch auf `wall:update` und sortiert
+  lokal neu, exakt in der Reihenfolge von `listWallPosts()`.
+  Drei Nachbesserungen aus der unabhängigen Prüfung:
+  - Der Wächter-Test scanne ursprünglich nur **eine** Datei, obwohl Broadcasts über
+    fünf Dateien verteilt sind. Eine eingeschleuste `wall:archive`-Broadcast in einer
+    zweiten Datei blieb unentdeckt. Er läuft jetzt über den gesamten `src`-Baum.
+  - `wall:update` trug nur die `postId`, der Client schaltete lokal um. Nach einem
+    verlorenen Ereignis konnte der Zustand dauerhaft invertiert bleiben. Der Payload
+    enthält jetzt den absoluten `isPinned`-Zustand, wodurch verpasste und doppelt
+    zugestellte Ereignisse konvergieren statt zu driften.
+  - Die Dokumentation behauptete eine CI-Garantie, die der Test nicht lieferte; sie
+    benennt jetzt die tatsächliche Reichweite und die verbleibende Lücke.
 
 ### Security
 

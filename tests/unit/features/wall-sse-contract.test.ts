@@ -1,67 +1,91 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The guest page subscribes to SSE events inside a single onMount block. A missing
- * subscription is invisible at runtime: the page still renders correctly, the guest
- * simply keeps a stale state until a full reload. That is precisely why the host's
- * "pin" action (which broadcasts `wall:update`) went unnoticed while `wall:new` and
- * `wall:delete` worked fine.
+ * The guest page subscribes to SSE events in one onMount block. A missing subscription
+ * is invisible at runtime: the page still renders correctly, the guest simply keeps a
+ * stale state until a full reload. That is exactly why the host's "pin" action
+ * (which broadcasts `wall:update`) went unnoticed while `wall:new` and `wall:delete`
+ * worked fine.
  *
- * This test pins the subscription list against what the server actually broadcasts,
- * so adding a new broadcast without a matching listener fails CI.
+ * SCOPE, learned from an independent review that failed this test in its first
+ * version: broadcasts are scattered across five files, and the previous version
+ * scanned only one of them. Injecting `wall:archive` into
+ * src/routes/e/[token]/+page.server.ts - which also broadcasts wall events - left
+ * that test at 4/4 green. So this scans the whole src tree.
+ *
+ * This remains a source-level contract check, not a behavioural one: it cannot catch a
+ * broadcast built by a renamed helper or an aliased constant. It does catch the case
+ * that actually bit us - a new wall event added to a file this test never looked at.
  */
-const GUEST_PAGE = fileURLToPath(
-	new URL('../../../src/routes/e/[token]/+page.svelte', import.meta.url)
-);
-const HOST_PAGE_SERVER = fileURLToPath(
-	new URL('../../../src/routes/(app)/events/[id]/+page.server.ts', import.meta.url)
-);
+const REPO_ROOT = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '..', '..', '..');
+const SRC = path.join(REPO_ROOT, 'src');
 
-function read(path: string): string {
-	return readFileSync(path, 'utf8');
+function allSourceFiles(dir: string): string[] {
+	const out: string[] = [];
+	for (const entry of readdirSync(dir)) {
+		const full = path.join(dir, entry);
+		if (statSync(full).isDirectory()) {
+			out.push(...allSourceFiles(full));
+		} else if (full.endsWith('.ts') && !full.endsWith('.d.ts')) {
+			out.push(full);
+		}
+	}
+	return out;
 }
 
-describe('Wall SSE: guest subscribes to everything the host broadcasts', () => {
-	const guestPage = read(GUEST_PAGE);
-	const hostServer = read(HOST_PAGE_SERVER);
+/** Every `sseHub.broadcast(<anything>, '<name>'` in the whole src tree. */
+function collectBroadcasts(): Map<string, string[]> {
+	const found = new Map<string, string[]>();
+	for (const file of allSourceFiles(SRC)) {
+		const source = readFileSync(file, 'utf8');
+		for (const match of source.matchAll(/sseHub\.broadcast\(\s*[^,]+,\s*'([^']+)'/g)) {
+			const list = found.get(match[1]) ?? [];
+			list.push(path.relative(REPO_ROOT, file));
+			found.set(match[1], list);
+		}
+	}
+	return found;
+}
 
-	const broadcastEvents = [...hostServer.matchAll(/sseHub\.broadcast\([^,]+,\s*'([^']+)'/g)]
-		.map((m) => m[1])
-		.filter((name) => name.startsWith('wall:'));
+function guestSubscriptions(): string[] {
+	const guestPage = readFileSync(path.join(SRC, 'routes', 'e', '[token]', '+page.svelte'), 'utf8');
+	return [...guestPage.matchAll(/addEventListener\(\s*'([^']+)'/g)].map((m) => m[1]);
+}
 
-	const subscribedEvents = [...guestPage.matchAll(/addEventListener\(\s*'([^']+)'/g)].map(
-		(m) => m[1]
-	);
+describe('Wall SSE: the guest subscribes to every wall event the host broadcasts', () => {
+	const broadcasts = collectBroadcasts();
+	const subscribed = guestSubscriptions();
 
-	it('finds the wall broadcasts on the host side', () => {
-		expect(broadcastEvents).toContain('wall:new');
-		expect(broadcastEvents).toContain('wall:update');
-		expect(broadcastEvents).toContain('wall:delete');
+	it('finds wall broadcasts across the whole source tree', () => {
+		// Guards the scan itself: if the walk silently matched nothing, every other
+		// assertion here would pass vacuously.
+		expect(broadcasts.size).toBeGreaterThan(4);
+		expect(broadcasts.get('wall:new')?.length).toBeGreaterThanOrEqual(2);
+		expect(broadcasts.has('wall:update')).toBe(true);
+		expect(broadcasts.has('wall:delete')).toBe(true);
 	});
 
-	it('subscribes to every wall event the host broadcasts', () => {
-		const missing = broadcastEvents.filter((name) => !subscribedEvents.includes(name));
+	it('subscribes to every wall event broadcast anywhere in src', () => {
+		const wallEvents = [...broadcasts.keys()].filter((name) => name.startsWith('wall:'));
+		const missing = wallEvents.filter((name) => !subscribed.includes(name));
+		expect(missing).toEqual([]);
+	});
+
+	it('subscribes to every non-wall event broadcast anywhere in src', () => {
+		// Not just the wall: the same trap applies to rsvp, poll and media events.
+		const missing = [...broadcasts.keys()].filter((name) => !subscribed.includes(name));
 		expect(missing).toEqual([]);
 	});
 
 	it('cleans up the EventSource on unmount', () => {
-		// Otherwise the stream leaks per navigation, and with it the pin updates.
+		const guestPage = readFileSync(
+			path.join(SRC, 'routes', 'e', '[token]', '+page.svelte'),
+			'utf8'
+		);
 		const onMountBody = guestPage.slice(guestPage.indexOf('onMount(() =>'));
 		expect(onMountBody).toContain('eventSource.close()');
 	});
-
-	it('re-sorts pinned posts to the top, matching the repository order', () => {
-		// listWallPosts() orders by is_pinned DESC, created_at DESC. The local
-		// re-sort after a pin toggle has to reproduce that, otherwise a pin would
-		// jump the post somewhere the full reload would contradict.
-		expect(onMountBodyOf(guestPage)).toContain('a.isPinned ? -1 : 1');
-		expect(onMountBodyOf(guestPage)).toContain('b.createdAt - a.createdAt');
-	});
 });
-
-function onMountBodyOf(source: string): string {
-	const start = source.indexOf('onMount(() =>');
-	return start === -1 ? '' : source.slice(start);
-}

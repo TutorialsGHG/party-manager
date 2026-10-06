@@ -133,9 +133,14 @@
 		// correct either way, which is exactly why the missing subscription stayed
 		// unnoticed. Re-sort locally instead of invalidating, so a pin does not refetch
 		// the whole page - and match the repository order (is_pinned DESC, created_at DESC).
+		//
+		// The payload carries the ABSOLUTE isPinned state, not just the id. A client that
+		// blindly toggled its own copy would, after a single lost event, flip the wrong
+		// way and stay inverted until something unrelated triggered a reload. Assigning the
+		// authoritative value makes a replayed or out-of-order event converge instead.
 		eventSource.addEventListener('wall:update', (e) => {
-			const { postId } = JSON.parse(e.data);
-			posts = posts.map((p) => (p.id === postId ? { ...p, isPinned: !p.isPinned } : p));
+			const { postId, isPinned } = JSON.parse(e.data);
+			posts = posts.map((p) => (p.id === postId ? { ...p, isPinned: !!isPinned } : p));
 			posts = [...posts].sort((a, b) => {
 				if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
 				return b.createdAt - a.createdAt;
