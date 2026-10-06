@@ -4,6 +4,17 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ## [Unreleased]
 
+### Added
+
+- **Teilnehmende-Übersicht für den Host:** Die Host-Ansicht zeigte bislang nur
+  Zähler und die Zusagen — wer die Einladung geöffnet hat, geschrieben oder
+  Fotos hochgeladen hat, aber keine Rückmeldung abgibt, war dort unsichtbar.
+  `getRsvpSummary` liest ausschliesslich `rsvps`, für solche Gäste existiert dort
+  gar kein Datensatz. Neu ist `listGuestOverview()`, das `guests` als führende
+  Tabelle liest (LEFT JOIN) und je Gast RSVP-Status, Begleitpersonen sowie
+  Aktivitätszähler für Pinnwand und Uploads ausweist. Aktivität eines anderen
+  Events des Hosts schlägt nicht durch.
+
 ### Security
 
 - **Offene Registrierung als Default:** `registrationEnabled` war `true`. Damit
