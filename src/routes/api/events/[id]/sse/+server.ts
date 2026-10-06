@@ -41,8 +41,19 @@ export const GET: RequestHandler = async ({ params, locals, cookies }) => {
 	// The predicate is the SAME function the page load uses
 	// (lib/server/announcements/audience.ts). Sharing it is the point: the two used to
 	// disagree, which is how the plaintext ended up on a channel the filter was supposed
-	// to protect. Resolved once per connection - an RSVP cannot change while the socket
-	// is open, and a per-broadcast database read would tax every live client.
+	// to protect.
+	//
+	// Evaluated per broadcast, on purpose. An earlier comment here claimed an RSVP
+	// "cannot change while the socket is open" and justified a once-per-connection
+	// cache with it. That is false and was never checked: the invite page carries the
+	// RSVP form next to the EventSource, so a guest can confirm, then decline, then
+	// re-confirm on the very same open connection. Caching would keep handing
+	// announcements to someone who just cancelled.
+	//
+	// Cost: one guest lookup plus one or two RSVP reads per announcement, only for
+	// announcement:* events, and only for guests - hosts skip the lookup entirely. A
+	// broadcast fans out to at most MAX_CLIENTS_PER_ROOM (200) connections, so this is
+	// bounded and small next to the payload construction it guards.
 	const canReceive = (eventType: string): boolean => {
 		if (!eventType.startsWith('announcement:')) return true;
 		if (isHost) return true;
