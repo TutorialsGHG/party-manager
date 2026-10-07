@@ -42,6 +42,16 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   Begleit-Zweig deshalb nie: zugesagte Begleitungen bekamen nichts, während
   Commit-Text und Karte es versprochen hatten.
   Ankündigungen erscheinen über der Pinnwand und aktualisieren sich per SSE.
+- **Backup-/Restore-Roundtrip ist jetzt getestet:** Bisher prüfte kein Test, ob ein
+  Backup dieses Leitfadens überhaupt wiederherstellbar ist. Jeder Krypto-Test lief
+  im selben Prozess, in dem `master-key.ts` den entschlüsselten Master-Schlüssel
+  aus einem Modul-Cache liefert — ein In-Prozess-Restore hätte also auch dann
+  „geklappt", wenn die Schlüssel auf der Platte fehlen. Der neue Test schreibt und
+  liest deshalb in getrennten Kindprozessen: verschlüsseltes Event, RSVP mit
+  Notizen und ein echter AES-GCM-Chunk-Blob. Er belegt zusätzlich, dass die Datenbank
+  auf der Platte keinen Klartext enthält und dass ein Restore **laut scheitert**,
+  wenn `/config` fehlt oder die Passphrase falsch ist — genau der Datenverlust, den
+  dieser Leitfaden als kritisch markiert.
 
 ### Security
 
