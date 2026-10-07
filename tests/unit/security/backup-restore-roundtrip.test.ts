@@ -20,6 +20,7 @@ const TESTS_DIR = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '..
 const HELPERS = path.join(TESTS_DIR, 'helpers');
 const WRITER = path.join(HELPERS, 'backup-writer.ts');
 const READER = path.join(HELPERS, 'backup-reader.ts');
+const LOADER = path.join(HELPERS, 'run-helper.ts');
 const ROOT = path.resolve('.roundtrip-tmp');
 const PASSPHRASE = 'roundtrip-fixture-passphrase-not-secret';
 
@@ -43,14 +44,25 @@ interface ReaderResult {
 	blobOnDisk: number;
 }
 
-/** Runs one helper in a cold process and returns its JSON stdout. */
+/**
+ * Runs one helper in a cold child process and returns its JSON stdout.
+ *
+ * The child is plain `node` running tests/helpers/run-helper.ts, which loads the
+ * helper through Vite's own module runner. It used to be `npx vite-node`, which
+ * pulled an undeclared package from the npm registry on every run - see issue #10
+ * and the reasoning in run-helper.ts.
+ */
 function runHelper(script: string, env: Record<string, string>): any {
-	const out = execFileSync('npx', ['vite-node', script], {
-		env: { ...process.env, ENCRYPTION_PASSPHRASE: PASSPHRASE, ...env },
-		encoding: 'utf8',
-		cwd: path.resolve('.'),
-		stdio: ['ignore', 'pipe', 'pipe']
-	});
+	const out = execFileSync(
+		process.execPath,
+		['--experimental-strip-types', '--no-warnings', LOADER, script],
+		{
+			env: { ...process.env, ENCRYPTION_PASSPHRASE: PASSPHRASE, ...env },
+			encoding: 'utf8',
+			cwd: path.resolve('.'),
+			stdio: ['ignore', 'pipe', 'pipe']
+		}
+	);
 	const line = out
 		.trim()
 		.split('\n')
@@ -157,19 +169,23 @@ describe('Backup / Restore round-trip', () => {
 	it('refuses to decrypt with the wrong passphrase instead of returning garbage', () => {
 		let failed = false;
 		try {
-			execFileSync('npx', ['vite-node', READER], {
-				env: {
-					...process.env,
-					ENCRYPTION_PASSPHRASE: 'wrong-passphrase',
-					ROUNDTRIP_DIR: restoredRoot,
-					ROUNDTRIP_EVENT_ID: written.eventId,
-					ROUNDTRIP_USER_ID: written.userId,
-					ROUNDTRIP_MEDIA_ID: written.mediaId
-				},
-				encoding: 'utf8',
-				cwd: path.resolve('.'),
-				stdio: ['ignore', 'pipe', 'pipe']
-			});
+			execFileSync(
+				process.execPath,
+				['--experimental-strip-types', '--no-warnings', LOADER, READER],
+				{
+					env: {
+						...process.env,
+						ENCRYPTION_PASSPHRASE: 'wrong-passphrase',
+						ROUNDTRIP_DIR: restoredRoot,
+						ROUNDTRIP_EVENT_ID: written.eventId,
+						ROUNDTRIP_USER_ID: written.userId,
+						ROUNDTRIP_MEDIA_ID: written.mediaId
+					},
+					encoding: 'utf8',
+					cwd: path.resolve('.'),
+					stdio: ['ignore', 'pipe', 'pipe']
+				}
+			);
 		} catch {
 			failed = true;
 		}

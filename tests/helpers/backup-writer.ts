@@ -94,4 +94,6 @@ async function main() {
 	);
 }
 
-void main();
+// Exported so tests/helpers/run-helper.ts can await it. Under `npx vite-node`
+// this was a fire-and-forget `void main()` and the loader could not wait for it.
+export default main();
