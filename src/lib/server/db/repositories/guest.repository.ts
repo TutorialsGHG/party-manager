@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { getDb } from '../client';
 import { getEventKey, encryptText, decryptText } from '../../crypto';
+import { listCompanionNamesByOwner } from './companion-invite.repository';
 
 export interface GuestData {
 	id: string;
@@ -125,4 +126,93 @@ export function deleteGuest(guestId: string, eventId: string): boolean {
 		.prepare('DELETE FROM guests WHERE id = ? AND event_id = ?')
 		.run(guestId, eventId);
 	return res.changes > 0;
+}
+
+export interface GuestOverviewEntry {
+	guestId: string;
+	name: string;
+	isHost: boolean;
+	isCompanion: boolean;
+	createdAt: number;
+	status: 'yes' | 'maybe' | 'no' | null;
+	companionCount: number;
+	companionNames: string[];
+	notes: string;
+	wallPostCount: number;
+	uploadCount: number;
+}
+
+/**
+ * Every guest who ever opened the invitation for this event, with the activity the
+ * host actually needs to answer "who is there?" - not only the guests who sent an
+ * RSVP.
+ *
+ * `getRsvpSummary` only ever sees the `rsvps` table, so a guest who took a photo or
+ * posted on the wall but never confirmed stays invisible to the host. That is the
+ * whole point of this view: the union of the guests table and their activity.
+ *
+ * Counts come from grouped subqueries rather than per-guest queries so this stays a
+ * single round-trip regardless of guest count.
+ */
+export function listGuestOverview(eventId: string): GuestOverviewEntry[] {
+	const rows = getDb()
+		.prepare(
+			`
+    SELECT g.id, g.name_cipher, g.is_host, g.companion_invite_id, g.created_at,
+           r.id AS rsvp_id, r.status, r.companion_count, r.companion_names_cipher,
+           r.notes_cipher,
+           COALESCE(w.post_count, 0) AS post_count,
+           COALESCE(m.upload_count, 0) AS upload_count
+    FROM guests g
+    LEFT JOIN rsvps r ON r.guest_id = g.id AND r.event_id = g.event_id
+    LEFT JOIN (
+      SELECT guest_id, COUNT(*) AS post_count
+      FROM wall_posts
+      WHERE event_id = ?
+      GROUP BY guest_id
+    ) w ON w.guest_id = g.id
+    LEFT JOIN (
+      SELECT uploader_guest_id, COUNT(*) AS upload_count
+      FROM media
+      WHERE event_id = ?
+      GROUP BY uploader_guest_id
+    ) m ON m.uploader_guest_id = g.id
+    WHERE g.event_id = ?
+    ORDER BY g.created_at ASC
+  `
+		)
+		.all(eventId, eventId, eventId) as any[];
+
+	const ek = getEventKey(eventId);
+
+	// Companion names come from companion_invites, NOT from the comma-separated string
+	// in rsvps.companion_names_cipher.
+	//
+	// Splitting that string is untrustworthy in both directions: a name containing a
+	// comma ("Mueller, Anna") tears into two entries, and an empty slot yields fewer
+	// names than there are companions. More importantly, getRsvpSummary() - rendered on
+	// the SAME host page - already reads the names from companion_invites, so the two
+	// views answered differently for identical data. Reading one source removes the
+	// whole class of disagreement.
+	const companionNamesByOwner = listCompanionNamesByOwner(eventId);
+
+	return rows.map((row) => ({
+		guestId: row.id,
+		name: decryptText(row.name_cipher, ek, `guests:${row.id}:name`),
+		isHost: !!row.is_host,
+		isCompanion: !!row.companion_invite_id,
+		createdAt: row.created_at,
+		status: (row.status ?? null) as GuestOverviewEntry['status'],
+		companionCount: row.companion_count ?? 0,
+		companionNames: companionNamesByOwner.get(row.id) || [],
+		// Same AAD rule as companion names: the RSVP row id, not the guest id.
+		// `notes` is what a guest types into "Notizen oder Allergien" on the
+		// invitation page - the host has to be able to read it, and there is no
+		// other reader in the codebase.
+		notes: row.notes_cipher
+			? decryptText(row.notes_cipher, ek, `rsvps:${row.rsvp_id}:notes`).trim()
+			: '',
+		wallPostCount: row.post_count,
+		uploadCount: row.upload_count
+	}));
 }

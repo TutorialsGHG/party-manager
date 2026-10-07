@@ -6,6 +6,28 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ### Added
 
+- **Teilnehmende-Übersicht für den Host:** Die Host-Ansicht zeigte bislang nur
+  Zähler und die Zusagen — wer die Einladung geöffnet hat, geschrieben oder
+  Fotos hochgeladen hat, aber keine Rückmeldung abgibt, war dort unsichtbar.
+  `getRsvpSummary` liest ausschliesslich `rsvps`, für solche Gäste existiert dort
+  gar kein Datensatz. Neu ist `listGuestOverview()`, das `guests` als führende
+  Tabelle liest (LEFT JOIN) und je Gast RSVP-Status, Begleitpersonen sowie
+  Aktivitätszähler für Pinnwand und Uploads ausweist. Aktivität eines anderen
+  Events des Hosts schlägt nicht durch.
+- **Gastnotizen für den Host:** Das Feld „Notizen oder Allergien" auf der
+  Einladungsseite wurde verschlüsselt gespeichert, aber nur vom Gast selbst wieder
+  eingelesen (`findRsvpByGuestId`, damit das Formular den Wert vorbelegt). Für den
+  Gastgeber war es unlesbar — Allergien und Essenswünsche konnte er nicht sehen,
+  obwohl die Gäste sie angeben konnten. Die Übersicht weist sie jetzt je Gast aus.
+  Notizen bleiben verschlüsselt (`rsvps:<rsvp-id>:notes` als AAD) und werden nur dem
+  Host des eigenen Events angezeigt; auf der Einladungsseite wird weiterhin nur die
+  eigene Notiz des jeweiligen Gasts ausgeliefert.
+- **Begleitnamen aus einer einzigen Quelle gelesen:** Die Übersicht hat sie zuerst
+  aus `rsvps.companion_names_cipher` gesplittet, einem kommaseparierten Klartext.
+  Ein Name mit Komma wurde dadurch zerlegt, und — schlimmer — `getRsvpSummary()`
+  liest dieselben Namen aus `companion_invites` und steht als Zusage-Karte auf
+  derselben Seite: zwei Ansichten widersprachen sich für identische Daten. Beide
+  lesen jetzt dieselbe Quelle, womit die ganze Fehlerklasse entfällt.
 - **Ankündigungen an die Zusagen:** Der Host konnte bisher nur auf der Pinnwand
   schreiben, die jeder mit dem Link sieht — „Bitte Getränke bis Freitag
   mitbringen" erreicht so auch alle, die abgesagt haben. Neu sind
@@ -20,6 +42,35 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   Begleit-Zweig deshalb nie: zugesagte Begleitungen bekamen nichts, während
   Commit-Text und Karte es versprochen hatten.
   Ankündigungen erscheinen über der Pinnwand und aktualisieren sich per SSE.
+- **Backup-/Restore-Roundtrip ist jetzt getestet:** Bisher prüfte kein Test, ob ein
+  Backup dieses Leitfadens überhaupt wiederherstellbar ist. Jeder Krypto-Test lief
+  im selben Prozess, in dem `master-key.ts` den entschlüsselten Master-Schlüssel
+  aus einem Modul-Cache liefert — ein In-Prozess-Restore hätte also auch dann
+  „geklappt", wenn die Schlüssel auf der Platte fehlen. Der neue Test schreibt und
+  liest deshalb in getrennten Kindprozessen: verschlüsseltes Event, RSVP mit
+  Notizen und ein echter AES-GCM-Chunk-Blob. Er belegt zusätzlich, dass die Datenbank
+  auf der Platte keinen Klartext enthält und dass ein Restore **laut scheitert**,
+  wenn `/config` fehlt oder die Passphrase falsch ist — genau der Datenverlust, den
+  dieser Leitfaden als kritisch markiert.
+
+### Fixed
+
+- **Angepinnte Pinnwand-Beiträge erschienen bei Gästen erst nach einem Reload:**
+  Der Host sendet beim Anpinnen `wall:update`, aber der Gast-Client abonnierte nur
+  `wall:new` und `wall:delete`. Da die Oberfläche in beiden Fällen korrekt rendert,
+  fiel die Lücke nicht auf — der Gast sah den alten Zustand einfach weiter, bis er
+  geladen. Der Gast lauscht jetzt auch auf `wall:update` und sortiert
+  lokal neu, exakt in der Reihenfolge von `listWallPosts()`.
+  Drei Nachbesserungen aus der unabhängigen Prüfung:
+  - Der Wächter-Test scanne ursprünglich nur **eine** Datei, obwohl Broadcasts über
+    fünf Dateien verteilt sind. Eine eingeschleuste `wall:archive`-Broadcast in einer
+    zweiten Datei blieb unentdeckt. Er läuft jetzt über den gesamten `src`-Baum.
+  - `wall:update` trug nur die `postId`, der Client schaltete lokal um. Nach einem
+    verlorenen Ereignis konnte der Zustand dauerhaft invertiert bleiben. Der Payload
+    enthält jetzt den absoluten `isPinned`-Zustand, wodurch verpasste und doppelt
+    zugestellte Ereignisse konvergieren statt zu driften.
+  - Die Dokumentation behauptete eine CI-Garantie, die der Test nicht lieferte; sie
+    benennt jetzt die tatsächliche Reichweite und die verbleibende Lücke.
 
 ### Security
 

@@ -19,7 +19,7 @@ import {
 	listPollsForEvent,
 	toggleClosePoll
 } from '$lib/server/db/repositories/poll.repository';
-import { registerGuest } from '$lib/server/db/repositories/guest.repository';
+import { registerGuest, listGuestOverview } from '$lib/server/db/repositories/guest.repository';
 import {
 	createAnnouncement,
 	listAnnouncements,
@@ -40,6 +40,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const mediaItems = MediaRepository.listByEvent(event.id);
 	const wallPosts = listWallPosts(event.id);
 	const polls = listPollsForEvent(event.id);
+	// Guests who never sent an RSVP still matter to the host: they opened the
+	// invitation, posted on the wall or uploaded photos. `getRsvpSummary` is driven
+	// by the rsvps table and therefore structurally blind to them.
+	const guestOverview = listGuestOverview(event.id);
 	const announcements = listAnnouncements(event.id);
 	const baseUrl = config.baseUrl;
 
@@ -50,6 +54,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return {
 		event: safeEvent,
 		rsvp,
+		guestOverview,
 		announcements,
 		mediaItems,
 		wallPosts,
@@ -149,9 +154,12 @@ export const actions: Actions = {
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const postId = String((await request.formData()).get('postId') || '');
-		const success = togglePinWallPost(postId, event.id);
-		if (success) sseHub.broadcast(event.id, 'wall:update', { postId });
-		return { success };
+		const isPinned = togglePinWallPost(postId, event.id);
+		if (isPinned === null) return { success: false };
+		// Absolute state, not just the id: a client that missed an event then converges
+		// instead of toggling from a stale value and ending up inverted.
+		if (isPinned) sseHub.broadcast(event.id, 'wall:update', { postId, isPinned });
+		return { success: true };
 	},
 
 	deleteWallPost: async ({ request, params, locals }) => {

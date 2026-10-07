@@ -80,16 +80,25 @@ export function listWallPosts(eventId: string): WallPostData[] {
 	});
 }
 
-export function togglePinWallPost(postId: string, eventId: string): boolean {
+/**
+ * Flips the pin state and returns the resulting ABSOLUTE state, or null if the post
+ * does not exist in this event.
+ *
+ * The caller broadcasts that absolute value rather than a bare `postId`: a client that
+ * applies a blind toggle to its local copy can end up inverted and stay that way if it
+ * ever misses an event. Receiving the authoritative state makes the update idempotent
+ * - replaying an event or recovering from a gap converges instead of drifting.
+ */
+export function togglePinWallPost(postId: string, eventId: string): boolean | null {
 	const db = getDb();
 	const row = db
 		.prepare('SELECT is_pinned FROM wall_posts WHERE id = ? AND event_id = ?')
 		.get(postId, eventId) as { is_pinned: number } | undefined;
-	if (!row) return false;
+	if (!row) return null;
 
 	const nextState = row.is_pinned ? 0 : 1;
 	db.prepare('UPDATE wall_posts SET is_pinned = ? WHERE id = ?').run(nextState, postId);
-	return true;
+	return nextState === 1;
 }
 
 export function deleteWallPost(

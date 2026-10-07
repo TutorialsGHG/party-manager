@@ -270,6 +270,59 @@
 	</Card>
 
 	<Card
+		title="Teilnehmende ({data.guestOverview.length})"
+		subtitle="Alle, die die Einladung geöffnet haben — auch ohne Rückmeldung."
+	>
+		{#if data.guestOverview.length === 0}
+			<p class="empty-hint">Noch hat niemand die Einladung geöffnet.</p>
+		{:else}
+			<div class="attendees-list">
+				{#each data.guestOverview as guest (guest.guestId)}
+					<div class="attendee-row">
+						<div class="overview-main">
+							<span class="guest-name">{guest.name}</span>
+							{#if guest.isHost}
+								<Badge variant="neutral">Host</Badge>
+							{:else if guest.isCompanion}
+								<Badge variant="neutral">Begleitung</Badge>
+							{/if}
+							{#if guest.status === 'yes'}
+								<Badge variant="success">Zusage</Badge>
+							{:else if guest.status === 'maybe'}
+								<Badge variant="neutral">Vielleicht</Badge>
+							{:else if guest.status === 'no'}
+								<Badge variant="danger">Absage</Badge>
+							{:else}
+								<Badge variant="neutral">Ohne Rückmeldung</Badge>
+							{/if}
+						</div>
+						<div class="overview-meta">
+							{#if guest.companionCount > 0}
+								<span class="meta-chip" title={guest.companionNames.join(', ')}>
+									+{guest.companionCount}
+								</span>
+							{/if}
+							{#if guest.wallPostCount > 0}
+								<span class="meta-chip" title="Beiträge auf der Pinnwand">
+									✎ {guest.wallPostCount}
+								</span>
+							{/if}
+							{#if guest.uploadCount > 0}
+								<span class="meta-chip" title="Hochgeladene Fotos und Videos">
+									⬆ {guest.uploadCount}
+								</span>
+							{/if}
+						</div>
+					</div>
+					{#if guest.notes}
+						<p class="guest-note">{guest.notes}</p>
+					{/if}
+				{/each}
+			</div>
+		{/if}
+	</Card>
+
+	<Card
 		title="Pinnwand"
 		subtitle="Veröffentliche Ankündigungen und moderiere Nachrichten deiner Gäste."
 	>
@@ -643,6 +696,46 @@
 
 	.companion-badge {
 		cursor: help;
+	}
+
+	.overview-main {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-wrap: wrap;
+		min-width: 0;
+	}
+
+	.overview-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-shrink: 0;
+	}
+
+	.meta-chip {
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
+		background-color: var(--bg-surface-elevated);
+		border-radius: var(--radius-sm);
+		padding: 2px var(--space-2);
+		cursor: help;
+		white-space: nowrap;
+	}
+
+	.empty-hint {
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+	}
+
+	.guest-note {
+		margin: var(--space-1) 0 0;
+		padding-left: var(--space-3);
+		border-left: 2px solid var(--accent-subtle);
+		color: var(--text-secondary);
+		font-size: var(--text-sm);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 
 	.announcement-stream {
