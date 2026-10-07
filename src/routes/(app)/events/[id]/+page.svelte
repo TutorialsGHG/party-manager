@@ -236,6 +236,39 @@
 		{/if}
 	</Card>
 
+	<Card title="Ankündigungen" subtitle="Nur für Gäste, die zugesagt haben.">
+		<form action="?/sendAnnouncement" method="POST" use:enhance class="host-form">
+			<label class="sr-only" for="announcement">Neue Ankündigung</label>
+			<textarea
+				id="announcement"
+				name="content"
+				class="host-textarea"
+				rows="2"
+				maxlength="500"
+				placeholder="Bitte Getränke bis Freitag mitbringen..."></textarea>
+			<Button type="submit" size="sm">An alle Zusagen senden</Button>
+		</form>
+
+		{#if data.announcements.length === 0}
+			<p class="empty-hint">Noch keine Ankündigungen versendet.</p>
+		{:else}
+			<div class="host-items">
+				{#each data.announcements as announcement (announcement.id)}
+					<article class="host-item">
+						<p>{announcement.content}</p>
+						<form action="?/deleteAnnouncement" method="POST" use:enhance>
+							<input type="hidden" name="announcementId" value={announcement.id} />
+							<Button type="submit" variant="ghost" size="sm">
+								<Trash2 size={16} />
+								<span class="sr-only">Ankündigung löschen</span>
+							</Button>
+						</form>
+					</article>
+				{/each}
+			</div>
+		{/if}
+	</Card>
+
 	<Card
 		title="Teilnehmende ({data.guestOverview.length})"
 		subtitle="Alle, die die Einladung geöffnet haben — auch ohne Rückmeldung."
@@ -665,7 +698,7 @@
 		cursor: help;
 	}
 
-	.overview-main {
+.overview-main {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -703,6 +736,24 @@
 		font-size: var(--text-sm);
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+	}
+
+	.announcement-stream {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		margin-bottom: var(--space-4);
+	}
+
+	.announcement-card {
+		background-color: var(--accent-subtle);
+		border-radius: var(--radius-md);
+		padding: var(--space-3);
+	}
+
+	.announcement-card p {
+		margin: 0 0 var(--space-1);
+		font-size: var(--text-sm);
 	}
 
 	.host-form,

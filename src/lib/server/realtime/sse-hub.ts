@@ -3,6 +3,14 @@ type SSEController = ReadableStreamDefaultController<string>;
 interface ClientConnection {
 	id: string;
 	controller: SSEController;
+	/**
+	 * Guests only receive the broadcasts they are entitled to. A plain `broadcast`
+	 * reaches everyone in the room, which is right for the wall but wrong for host
+	 * announcements: those are addressed to the guests who confirmed, and a guest who
+	 * declined must not receive the content on a live channel either - the server-side
+	 * filter in the guest load only covers the initial page load.
+	 */
+	canReceive(targetEventType: string): boolean;
 }
 
 /** Per-event connection cap: one guest can otherwise open unlimited EventSource connections. */
@@ -34,7 +42,11 @@ class SSEHub {
 	 * Registers a client. Returns null when a connection limit is reached so the
 	 * caller can answer with 503 instead of binding another socket and timer.
 	 */
-	addClient(eventId: string, controller: SSEController): (() => void) | null {
+	addClient(
+		eventId: string,
+		controller: SSEController,
+		canReceive: (eventType: string) => boolean = () => true
+	): (() => void) | null {
 		if (this.totalClientCount >= MAX_CLIENTS_GLOBAL) {
 			return null;
 		}
@@ -50,7 +62,8 @@ class SSEHub {
 
 		const client: ClientConnection = {
 			id: Math.random().toString(36).substring(2, 9),
-			controller
+			controller,
+			canReceive
 		};
 
 		room.add(client);
@@ -72,6 +85,7 @@ class SSEHub {
 
 		for (const client of room) {
 			try {
+				if (!client.canReceive(eventType)) continue;
 				client.controller.enqueue(payload);
 			} catch {
 				room.delete(client);

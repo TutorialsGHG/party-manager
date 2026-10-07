@@ -28,6 +28,20 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   liest dieselben Namen aus `companion_invites` und steht als Zusage-Karte auf
   derselben Seite: zwei Ansichten widersprachen sich für identische Daten. Beide
   lesen jetzt dieselbe Quelle, womit die ganze Fehlerklasse entfällt.
+- **Ankündigungen an die Zusagen:** Der Host konnte bisher nur auf der Pinnwand
+  schreiben, die jeder mit dem Link sieht — „Bitte Getränke bis Freitag
+  mitbringen" erreicht so auch alle, die abgesagt haben. Neu sind
+  `event_announcements` (verschlüsselt, Migration 008) und ein Send-Formular im
+  Event-Panel. Der Audience-Filter läuft **serverseitig**: wer nicht zugesagt hat,
+  bekommt den Text gar nicht erst in den Seiten-Payload. Ein Filter im Template
+  hätte ihn immer noch ausgeliefert. Seitenaufruf und SSE-Route benutzen dafür
+  jetzt dieselbe Funktion (`guestSeesAnnouncements()`), damit die beiden Wege
+  nicht auseinanderlaufen können. Begleitpersonen zählen über den RSVP ihres
+  Gastgebers — sie selbst können nie zusagen, weil `submitRsvp` sie mit einem 403
+  ablehnt. Eine erste Fassung prüfte den _eigenen_ RSVP und erreichte den
+  Begleit-Zweig deshalb nie: zugesagte Begleitungen bekamen nichts, während
+  Commit-Text und Karte es versprochen hatten.
+  Ankündigungen erscheinen über der Pinnwand und aktualisieren sich per SSE.
 
 ### Security
 

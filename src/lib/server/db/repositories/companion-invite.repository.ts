@@ -143,6 +143,29 @@ export function claimCompanionInvite(eventId: string, token: string, guestId: st
 	return result.changes === 1;
 }
 
+/**
+ * The guest who owns the invite that this companion claimed, or null if the guest is
+ * not a companion.
+ *
+ * A companion can never have an rsvp row of its own: submitRsvp rejects companions
+ * outright ("Begleitpersonen können keine eigene Rückmeldung abgeben"). So "did this
+ * person confirm?" has to be answered about their owner, not about themselves.
+ */
+export function findCompanionOwnerGuestId(
+	eventId: string,
+	companionGuestId: string
+): string | null {
+	const row = getDb()
+		.prepare(
+			`SELECT c.owner_guest_id
+       FROM guests g
+       JOIN companion_invites c ON g.companion_invite_id = c.id
+       WHERE g.id = ? AND g.event_id = ? AND c.event_id = ?`
+		)
+		.get(companionGuestId, eventId, eventId) as { owner_guest_id: string } | undefined;
+	return row?.owner_guest_id ?? null;
+}
+
 export function findAvailableCompanionInvite(
 	eventId: string,
 	token: string
