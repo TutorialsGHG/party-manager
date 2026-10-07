@@ -55,6 +55,20 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ### Fixed
 
+- **Der Backup-Writer scheiterte bei wiederverwendeter Datenbank:** Er legte den
+  Host mit der festen E-Mail `roundtrip-host@party.local` an, und
+  `users.email_hash` trägt einen UNIQUE-Constraint — `hashEmail()` normalisiert
+  vorher noch auf Kleinschreibung. Gegen eine frische Datenbank fällt das nicht
+  auf, gegen eine wiederverwendete schon: Lauf 1 grün, Läufe 2–5 mit
+  `UNIQUE constraint failed: users.email_hash`. Getroffen wird es, wenn ein Lauf
+  abgebrochen wurde und `.roundtrip-tmp` liegen bleibt, oder wenn ein zweiter
+  Prozess dieselbe Datenbank anfasst. Der Fehler liest sich wie ein
+  Datenbankdefekt, war aber eine Fixture-Kollision. Die Adresse trägt jetzt ein
+  UUID-Suffix, wie es die übrigen Testdateien bereits tun. Gemessen: 5 Läufe
+  gegen dieselbe Datenbank, vorher 4 Kollisionen, nachher 0 (5 User, 5 Events).
+  Zusätzlich steht `/.roundtrip-tmp` jetzt in `.gitignore` — ein abgebrochener
+  Lauf hinterließ bislang `app.db` samt `-wal`/`-shm` als unversionierte
+  Artefakte im Arbeitsbaum.
 - **Der Backup-/Restore-Test lud zur Laufzeit Code aus der npm-Registry:**
   `tests/unit/security/backup-restore-roundtrip.test.ts` startete seine
   Kindprozesse mit `execFileSync('npx', ['vite-node', script])`. `vite-node` war

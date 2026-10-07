@@ -38,8 +38,16 @@ async function main() {
 	runMigrations();
 	initMasterKeys();
 
+	// The host needs a unique address per run: users.email_hash carries a UNIQUE
+	// constraint, and hashEmail() lowercases + trims before hashing, so a fixed
+	// address collides the moment this helper runs against a database that already
+	// holds a previous run - an aborted run that left .roundtrip-tmp behind, or a
+	// second process touching the same database. The error that surfaced was
+	// "UNIQUE constraint failed: users.email_hash", which reads like a database
+	// defect rather than the fixture collision it actually is. Suffixes match the
+	// pattern the sibling suites already use.
 	const { user } = userRepo.createUser(
-		'roundtrip-host@party.local',
+		`roundtrip-host-${crypto.randomUUID()}@party.local`,
 		'fixture-hash-not-a-real-password',
 		[]
 	);
