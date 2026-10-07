@@ -55,6 +55,23 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ### Fixed
 
+- **Der Backup-/Restore-Test lud zur Laufzeit Code aus der npm-Registry:**
+  `tests/unit/security/backup-restore-roundtrip.test.ts` startete seine
+  Kindprozesse mit `execFileSync('npx', ['vite-node', script])`. `vite-node` war
+  nirgends deklariert — nicht in `package.json`, nicht im Lockfile, nicht in
+  `node_modules/.bin` — also holte `npx` das Paket bei jedem Lauf aus dem
+  globalen Cache nach. Zwei Folgen: Der Testpfad verstieß gegen AGENTS.md §5.1
+  („Keine externen Requests"), also gegen die dokumentierte Zusage der App. Und
+  mit kaltem npx-Cache brach der Lauf mit `ENOTCACHED` ab und übersprang alle
+  sechs Prüfungen still — ein kaputter Restore-Pfad konnte dadurch grün aussehen.
+  Statt `vite-node` nur zu deklarieren (das hätte den Registry-Zugriff nur
+  besser dokumentiert), ist er ersetzt: die Kindprozesse laufen als reines
+  `node` über `tests/helpers/run-helper.ts`, das die Helfer durch den
+  Modul-Runner von Vite lädt. `vite` ist mit `^8.0.16` bereits devDependency,
+  es kommt also kein Paket hinzu, und `vite-node` ist upstream zugunsten genau
+  dieser API abgekündigt. Verifiziert mit leerem npx-Cache und
+  `npm_config_offline=true`: vorher Exit 1 mit 6 übersprungenen Tests, jetzt
+  Exit 0 mit 6 bestandenen.
 - **Angepinnte Pinnwand-Beiträge erschienen bei Gästen erst nach einem Reload:**
   Der Host sendet beim Anpinnen `wall:update`, aber der Gast-Client abonnierte nur
   `wall:new` und `wall:delete`. Da die Oberfläche in beiden Fällen korrekt rendert,
