@@ -19,10 +19,7 @@ import {
 	listPollsForEvent,
 	toggleClosePoll
 } from '$lib/server/db/repositories/poll.repository';
-import {
-	registerGuest,
-	listGuestOverview
-} from '$lib/server/db/repositories/guest.repository';
+import { registerGuest, listGuestOverview } from '$lib/server/db/repositories/guest.repository';
 import {
 	createAnnouncement,
 	listAnnouncements,
