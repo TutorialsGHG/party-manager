@@ -157,9 +157,12 @@ export const actions: Actions = {
 		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
 
 		const postId = String((await request.formData()).get('postId') || '');
-		const success = togglePinWallPost(postId, event.id);
-		if (success) sseHub.broadcast(event.id, 'wall:update', { postId });
-		return { success };
+		const isPinned = togglePinWallPost(postId, event.id);
+		if (isPinned === null) return { success: false };
+		// Absolute state, not just the id: a client that missed an event then converges
+		// instead of toggling from a stale value and ending up inverted.
+		if (isPinned) sseHub.broadcast(event.id, 'wall:update', { postId, isPinned });
+		return { success: true };
 	},
 
 	deleteWallPost: async ({ request, params, locals }) => {

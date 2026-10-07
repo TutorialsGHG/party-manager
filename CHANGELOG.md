@@ -53,6 +53,25 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
   wenn `/config` fehlt oder die Passphrase falsch ist — genau der Datenverlust, den
   dieser Leitfaden als kritisch markiert.
 
+### Fixed
+
+- **Angepinnte Pinnwand-Beiträge erschienen bei Gästen erst nach einem Reload:**
+  Der Host sendet beim Anpinnen `wall:update`, aber der Gast-Client abonnierte nur
+  `wall:new` und `wall:delete`. Da die Oberfläche in beiden Fällen korrekt rendert,
+  fiel die Lücke nicht auf — der Gast sah den alten Zustand einfach weiter, bis er
+  geladen. Der Gast lauscht jetzt auch auf `wall:update` und sortiert
+  lokal neu, exakt in der Reihenfolge von `listWallPosts()`.
+  Drei Nachbesserungen aus der unabhängigen Prüfung:
+  - Der Wächter-Test scanne ursprünglich nur **eine** Datei, obwohl Broadcasts über
+    fünf Dateien verteilt sind. Eine eingeschleuste `wall:archive`-Broadcast in einer
+    zweiten Datei blieb unentdeckt. Er läuft jetzt über den gesamten `src`-Baum.
+  - `wall:update` trug nur die `postId`, der Client schaltete lokal um. Nach einem
+    verlorenen Ereignis konnte der Zustand dauerhaft invertiert bleiben. Der Payload
+    enthält jetzt den absoluten `isPinned`-Zustand, wodurch verpasste und doppelt
+    zugestellte Ereignisse konvergieren statt zu driften.
+  - Die Dokumentation behauptete eine CI-Garantie, die der Test nicht lieferte; sie
+    benennt jetzt die tatsächliche Reichweite und die verbleibende Lücke.
+
 ### Security
 
 - **Offene Registrierung als Default:** `registrationEnabled` war `true`. Damit
