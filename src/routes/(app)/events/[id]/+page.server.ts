@@ -5,7 +5,8 @@ import {
 	regenerateEventToken,
 	deleteEvent,
 	updateMaxCompanions,
-	updatePlaylistUrl
+	updatePlaylistUrl,
+	updateEventFeatures
 } from '$lib/server/db/repositories/event.repository';
 import { getRsvpSummary } from '$lib/server/db/repositories/rsvp.repository';
 import { MediaRepository } from '$lib/server/db/repositories/media.repository';
@@ -226,6 +227,26 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const playlistUrl = String(formData.get('playlistUrl') || '').trim();
 		const success = updatePlaylistUrl(event.id, user.id, playlistUrl || null);
+		return { success };
+	},
+
+	updateFeatures: async ({ request, params, locals }) => {
+		const user = requireUser(locals);
+		const event = findEventById(params.id!, user.id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const formData = await request.formData();
+		const showWall = formData.has('showWall');
+		const showPolls = formData.has('showPolls');
+		const showPotluck = formData.has('showPotluck');
+		const showGallery = formData.has('showGallery');
+
+		const success = updateEventFeatures(event.id, user.id, {
+			showWall,
+			showPolls,
+			showPotluck,
+			showGallery
+		});
 		return { success };
 	},
 

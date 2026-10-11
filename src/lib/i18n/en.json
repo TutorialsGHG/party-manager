@@ -44,7 +44,13 @@
 		"countdownMinutes": "Mins",
 		"countdownSeconds": "Secs",
 		"scrollLeft": "Scroll left",
-		"scrollRight": "Scroll right"
+		"scrollRight": "Scroll right",
+		"featuresTitle": "Guest Features & Tabs",
+		"featuresSubtitle": "Enable or disable specific tabs for guests on the invitation page.",
+		"showWall": "Show Wall",
+		"showPolls": "Show Polls",
+		"showPotluck": "Show Potluck list",
+		"showGallery": "Show Photo & Video Gallery"
 	},
 	"rsvp": {
 		"title": "Your RSVP",
@@ -105,7 +111,8 @@
 		"open": "Open in YouTube Music",
 		"openSpotify": "Open in Spotify",
 		"openGeneric": "Open playlist",
-		"embedNotice": "Party playlist"
+		"embedNotice": "Party playlist",
+		"youtubeHint": "Tap the playlist icon (☰) in the top right of the player to view the tracklist, or open the playlist directly in the app."
 	},
 	"partyMode": {
 		"title": "Party mode",

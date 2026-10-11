@@ -112,12 +112,48 @@
 
 		<Card title="Musik-Playlist (optional)">
 			<Input
-				label="Link zur Playlist (z. B. YouTube Music oder Spotify)"
+				label="Link zur Playlist (Spotify oder YouTube Music)"
 				name="playlistUrl"
 				bind:value={playlistUrl}
-				placeholder="https://music.youtube.com/playlist?list=..."
-				hint="Erscheint als 'Playlist'-Reiter bei deinen Gästen und im Party-Modus für den Bar-PC."
+				placeholder="https://open.spotify.com/playlist/... oder https://music.youtube.com/playlist?list=..."
+				hint="💡 Tipp: Spotify-Playlists zeigen Gästen eine durchscrollbare Song-Liste. YouTube-Playlists zeigen den YouTube-Player mit Menü."
 			/>
+		</Card>
+
+		<Card title={t('events.featuresTitle')} subtitle={t('events.featuresSubtitle')}>
+			<div class="features-list">
+				<label class="feature-item">
+					<input type="checkbox" name="showWall" checked />
+					<div class="feature-meta">
+						<strong>{t('events.showWall')}</strong>
+						<span>Nachrichten, Ankündigungen und Pinnwand-Beiträge.</span>
+					</div>
+				</label>
+
+				<label class="feature-item">
+					<input type="checkbox" name="showPolls" checked />
+					<div class="feature-meta">
+						<strong>{t('events.showPolls')}</strong>
+						<span>Umfragen für gemeinsame Entscheidungen (Essen, Musik, etc.).</span>
+					</div>
+				</label>
+
+				<label class="feature-item">
+					<input type="checkbox" name="showPotluck" checked />
+					<div class="feature-meta">
+						<strong>{t('events.showPotluck')}</strong>
+						<span>Mitbringliste für Speisen, Getränke und Snacks.</span>
+					</div>
+				</label>
+
+				<label class="feature-item">
+					<input type="checkbox" name="showGallery" checked />
+					<div class="feature-meta">
+						<strong>{t('events.showGallery')}</strong>
+						<span>Gemeinsame Foto- und Video-Galerie für Gäste.</span>
+					</div>
+				</label>
+			</div>
 		</Card>
 
 		<Card title="Design & Akzentfarbe">
@@ -270,5 +306,47 @@
 		display: flex;
 		justify-content: flex-end;
 		margin-top: var(--space-2);
+	}
+
+	.features-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+		gap: var(--space-3);
+	}
+
+	.feature-item {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-3);
+		padding: var(--space-3);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background-color: var(--bg-canvas);
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.feature-item input[type='checkbox'] {
+		margin-top: 3px;
+		accent-color: var(--accent);
+		width: 18px;
+		height: 18px;
+		cursor: pointer;
+	}
+
+	.feature-meta {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.feature-meta strong {
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+	}
+
+	.feature-meta span {
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
 	}
 </style>

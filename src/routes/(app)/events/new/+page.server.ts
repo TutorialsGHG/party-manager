@@ -30,7 +30,11 @@ export const actions: Actions = {
 			locationAddress,
 			accentColor,
 			playlistUrl,
-			maxCompanions
+			maxCompanions,
+			showWall,
+			showPolls,
+			showPotluck,
+			showGallery
 		} = parseResult.data;
 
 		const event = createEvent(requireUser(locals).id, {
@@ -42,7 +46,11 @@ export const actions: Actions = {
 			locationAddress,
 			accentColor,
 			playlistUrl,
-			maxCompanions
+			maxCompanions,
+			showWall,
+			showPolls,
+			showPotluck,
+			showGallery
 		});
 
 		throw redirect(303, `/events/${event.id}`);

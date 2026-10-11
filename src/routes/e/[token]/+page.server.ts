@@ -162,9 +162,11 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 			? listCompanionInvitesForOwner(event.id, currentGuest.id)
 			: [];
 	const summary = getRsvpSummary(event.id);
-	const wallPosts = listWallPosts(event.id);
-	const polls = listPollsForEvent(event.id, currentGuest?.id);
-	const mediaItems = MediaRepository.listByEvent(event.id).filter((m) => m.status === 'ready');
+	const wallPosts = event.showWall ? listWallPosts(event.id) : [];
+	const polls = event.showPolls ? listPollsForEvent(event.id, currentGuest?.id) : [];
+	const mediaItems = event.showGallery
+		? MediaRepository.listByEvent(event.id).filter((m) => m.status === 'ready')
+		: [];
 
 	// Announcements are addressed to the guests who confirmed ("bring drinks by
 	// Friday"). The filter runs on the server, not in the template: a guest who
@@ -176,7 +178,7 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 	const announcements = guestSeesAnnouncements(event.id, currentGuest)
 		? listAnnouncements(event.id)
 		: [];
-	const potluckItems = listPotluckItems(event.id);
+	const potluckItems = event.showPotluck ? listPotluckItems(event.id) : [];
 
 	return {
 		event,
@@ -359,6 +361,9 @@ export const actions: Actions = {
 	addWallPost: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showWall) {
+			return fail(403, { error: 'Pinnwand ist für dieses Event deaktiviert.' });
+		}
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
@@ -380,6 +385,9 @@ export const actions: Actions = {
 	deleteWallPost: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showWall) {
+			return fail(403, { error: 'Pinnwand ist für dieses Event deaktiviert.' });
+		}
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
@@ -400,6 +408,9 @@ export const actions: Actions = {
 	votePoll: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showPolls) {
+			return fail(403, { error: 'Umfragen sind für dieses Event deaktiviert.' });
+		}
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
@@ -421,6 +432,9 @@ export const actions: Actions = {
 	addPollOption: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showPolls) {
+			return fail(403, { error: 'Umfragen sind für dieses Event deaktiviert.' });
+		}
 
 		const cookieName = `${GUEST_COOKIE_PREFIX}${event.id.slice(0, 8)}`;
 		const deviceToken = cookies.get(cookieName);
@@ -454,6 +468,9 @@ export const actions: Actions = {
 	addPotluckItem: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showPotluck) {
+			return fail(403, { error: 'Mitbringliste ist für dieses Event deaktiviert.' });
+		}
 
 		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
 		if (!auth.ok) return auth.failure;
@@ -476,6 +493,9 @@ export const actions: Actions = {
 	claimPotluckItem: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showPotluck) {
+			return fail(403, { error: 'Mitbringliste ist für dieses Event deaktiviert.' });
+		}
 
 		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
 		if (!auth.ok) return auth.failure;
@@ -501,6 +521,9 @@ export const actions: Actions = {
 	unclaimPotluckItem: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showPotluck) {
+			return fail(403, { error: 'Mitbringliste ist für dieses Event deaktiviert.' });
+		}
 
 		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
 		if (!auth.ok) return auth.failure;
@@ -524,6 +547,9 @@ export const actions: Actions = {
 	deletePotluckItem: async ({ request, params, cookies }) => {
 		const event = findEventByToken(params.token);
 		if (!event) throw error(404, 'Event nicht gefunden.');
+		if (!event.showPotluck) {
+			return fail(403, { error: 'Mitbringliste ist für dieses Event deaktiviert.' });
+		}
 
 		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
 		if (!auth.ok) return auth.failure;

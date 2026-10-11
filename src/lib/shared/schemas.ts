@@ -27,7 +27,58 @@ export const eventSchema = z.object({
 		.regex(/^#[0-9A-Fa-f]{6}$/)
 		.default('#007AFF'),
 	playlistUrl: z.string().max(500).optional().default(''),
-	maxCompanions: z.coerce.number().int().min(0).max(20).default(0)
+	maxCompanions: z.coerce.number().int().min(0).max(20).default(0),
+	showWall: z
+		.preprocess(
+			(v) => v === undefined || v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(true),
+	showPolls: z
+		.preprocess(
+			(v) => v === undefined || v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(true),
+	showPotluck: z
+		.preprocess(
+			(v) => v === undefined || v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(true),
+	showGallery: z
+		.preprocess(
+			(v) => v === undefined || v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(true)
+});
+
+export const eventFeaturesSchema = z.object({
+	showWall: z
+		.preprocess(
+			(v) => v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(false),
+	showPolls: z
+		.preprocess(
+			(v) => v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(false),
+	showPotluck: z
+		.preprocess(
+			(v) => v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(false),
+	showGallery: z
+		.preprocess(
+			(v) => v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(false)
 });
 
 export const rsvpSchema = z.object({

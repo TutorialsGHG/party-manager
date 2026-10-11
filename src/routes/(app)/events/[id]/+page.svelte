@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { formatDate } from '$lib/i18n';
+	import { formatDate, t } from '$lib/i18n';
 	import { deriveThemeTokens } from '$lib/ui/tokens/colors';
 	import Card from '$lib/ui/components/Card.svelte';
 	import Button from '$lib/ui/components/Button.svelte';
@@ -35,6 +35,17 @@
 
 	let copied = $state(false);
 	let showDeleteDialog = $state(false);
+
+	let showWall = $state(true);
+	let showPolls = $state(true);
+	let showPotluck = $state(true);
+	let showGallery = $state(true);
+	$effect(() => {
+		showWall = data.event.showWall !== false;
+		showPolls = data.event.showPolls !== false;
+		showPotluck = data.event.showPotluck !== false;
+		showGallery = data.event.showGallery !== false;
+	});
 
 	let newPotluckTitle = $state('');
 	let playlistUrl = $state('');
@@ -577,18 +588,61 @@
 		{/if}
 	</Card>
 
+	<!-- Gäste-Funktionen & Reiter -->
+	<Card title={t('events.featuresTitle')} subtitle={t('events.featuresSubtitle')}>
+		<form action="?/updateFeatures" method="POST" use:enhance class="host-form">
+			<div class="features-toggles-grid">
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showWall" bind:checked={showWall} />
+					<div class="toggle-text">
+						<strong>{t('events.showWall')}</strong>
+						<span>Nachrichten, Ankündigungen und Pinnwand-Beiträge erlauben.</span>
+					</div>
+				</label>
+
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showPolls" bind:checked={showPolls} />
+					<div class="toggle-text">
+						<strong>{t('events.showPolls')}</strong>
+						<span>Umfragen für gemeinsame Entscheidungen (z. B. Essen, Musik) bereitstellen.</span>
+					</div>
+				</label>
+
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showPotluck" bind:checked={showPotluck} />
+					<div class="toggle-text">
+						<strong>{t('events.showPotluck')}</strong>
+						<span>Mitbringliste für Speisen, Getränke und Mitbringsel aktivieren.</span>
+					</div>
+				</label>
+
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showGallery" bind:checked={showGallery} />
+					<div class="toggle-text">
+						<strong>{t('events.showGallery')}</strong>
+						<span>Gemeinsame Foto- und Video-Galerie für Gäste aktivieren.</span>
+					</div>
+				</label>
+			</div>
+
+			<div class="host-form-actions">
+				<Button type="submit" variant="primary">Funktionen speichern</Button>
+			</div>
+		</form>
+	</Card>
+
 	<!-- Party Playlist Card -->
 	<Card
 		title="Musik-Playlist"
-		subtitle="Hinterlege einen Link zu einer YouTube Music oder Spotify Playlist für Gäste und den Bar-PC."
+		subtitle="Hinterlege einen Link zu einer Spotify oder YouTube Music Playlist für Gäste und den Bar-PC."
 	>
 		<form action="?/updatePlaylistUrl" method="POST" use:enhance class="host-form">
 			<Input
-				label="Playlist-Link (z. B. YouTube Music)"
+				label="Playlist-Link (Spotify oder YouTube Music)"
 				name="playlistUrl"
 				bind:value={playlistUrl}
-				placeholder="https://music.youtube.com/playlist?list=..."
-				hint="Erscheint als 'Playlist'-Reiter bei Gästen und als Schnellstart-Button im Party-Modus."
+				placeholder="https://open.spotify.com/playlist/... oder https://music.youtube.com/playlist?list=..."
+				hint="💡 Tipp: Spotify-Playlists zeigen Gästen eine durchscrollbare Song-Liste. YouTube-Playlists zeigen den YouTube-Player mit Menü."
 			/>
 			<div class="host-form-actions">
 				<Button type="submit" variant="primary">Playlist-Link speichern</Button>
@@ -600,7 +654,7 @@
 						class="playlist-link-btn"
 					>
 						<Music size={14} />
-						<span>In YouTube Music testen</span>
+						<span>Playlist testen</span>
 						<ExternalLink size={14} />
 					</a>
 				{/if}
@@ -858,6 +912,49 @@
 
 	.host-form {
 		margin-bottom: var(--space-4);
+	}
+
+	.features-toggles-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+		gap: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+
+	.feature-toggle-item {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-3);
+		padding: var(--space-3);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		background-color: var(--bg-canvas);
+		cursor: pointer;
+		user-select: none;
+	}
+
+	.feature-toggle-item input[type='checkbox'] {
+		margin-top: 3px;
+		accent-color: var(--accent);
+		width: 18px;
+		height: 18px;
+		cursor: pointer;
+	}
+
+	.toggle-text {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.toggle-text strong {
+		font-size: var(--text-sm);
+		color: var(--text-primary);
+	}
+
+	.toggle-text span {
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
 	}
 
 	.host-textarea,

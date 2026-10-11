@@ -22,6 +22,10 @@ export interface EventData {
 	locationAddress?: string;
 	playlistUrl?: string;
 	maxCompanions: number;
+	showWall?: boolean;
+	showPolls?: boolean;
+	showPotluck?: boolean;
+	showGallery?: boolean;
 	createdAt: number;
 }
 
@@ -46,6 +50,10 @@ export function createEvent(
 		accentColor?: string;
 		playlistUrl?: string;
 		maxCompanions?: number;
+		showWall?: boolean;
+		showPolls?: boolean;
+		showPotluck?: boolean;
+		showGallery?: boolean;
 	}
 ): EventData {
 	const db = getDb();
@@ -75,13 +83,19 @@ export function createEvent(
 			: null;
 	const inviteTokenCipher = encryptText(token, ek, `events:${id}:token`);
 
+	const showWall = params.showWall !== false;
+	const showPolls = params.showPolls !== false;
+	const showPotluck = params.showPotluck !== false;
+	const showGallery = params.showGallery !== false;
+
 	db.prepare(
 		`
     INSERT INTO events (
       id, token_hash, host_id, date_start, date_end, accent_color,
       title_cipher, description_cipher, location_name_cipher, location_address_cipher,
-      playlist_url_cipher, invite_token_cipher, max_companions, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      playlist_url_cipher, invite_token_cipher, max_companions, created_at,
+      show_wall, show_polls, show_potluck, show_gallery
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
 	).run(
 		id,
@@ -97,7 +111,11 @@ export function createEvent(
 		playlistCipher,
 		inviteTokenCipher,
 		Math.max(0, Math.min(20, params.maxCompanions || 0)),
-		now
+		now,
+		showWall ? 1 : 0,
+		showPolls ? 1 : 0,
+		showPotluck ? 1 : 0,
+		showGallery ? 1 : 0
 	);
 
 	return {
@@ -114,6 +132,10 @@ export function createEvent(
 		locationAddress: params.locationAddress,
 		playlistUrl: params.playlistUrl ? params.playlistUrl.trim() : undefined,
 		maxCompanions: Math.max(0, Math.min(20, params.maxCompanions || 0)),
+		showWall,
+		showPolls,
+		showPotluck,
+		showGallery,
 		createdAt: now
 	};
 }
@@ -153,6 +175,17 @@ function hydrateEventRow(row: any): EventData {
 		locationAddress,
 		playlistUrl,
 		maxCompanions: row.max_companions || 0,
+		showWall: row.show_wall !== undefined && row.show_wall !== null ? Boolean(row.show_wall) : true,
+		showPolls:
+			row.show_polls !== undefined && row.show_polls !== null ? Boolean(row.show_polls) : true,
+		showPotluck:
+			row.show_potluck !== undefined && row.show_potluck !== null
+				? Boolean(row.show_potluck)
+				: true,
+		showGallery:
+			row.show_gallery !== undefined && row.show_gallery !== null
+				? Boolean(row.show_gallery)
+				: true,
 		createdAt: row.created_at
 	};
 }
@@ -225,6 +258,31 @@ export function updateMaxCompanions(
 	const result = getDb()
 		.prepare('UPDATE events SET max_companions = ? WHERE id = ? AND host_id = ?')
 		.run(Math.max(0, Math.min(20, maxCompanions)), eventId, hostId);
+	return result.changes > 0;
+}
+
+export function updateEventFeatures(
+	eventId: string,
+	hostId: string,
+	features: {
+		showWall: boolean;
+		showPolls: boolean;
+		showPotluck: boolean;
+		showGallery: boolean;
+	}
+): boolean {
+	const result = getDb()
+		.prepare(
+			'UPDATE events SET show_wall = ?, show_polls = ?, show_potluck = ?, show_gallery = ? WHERE id = ? AND host_id = ?'
+		)
+		.run(
+			features.showWall ? 1 : 0,
+			features.showPolls ? 1 : 0,
+			features.showPotluck ? 1 : 0,
+			features.showGallery ? 1 : 0,
+			eventId,
+			hostId
+		);
 	return result.changes > 0;
 }
 

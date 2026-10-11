@@ -70,6 +70,14 @@
 	}
 
 	$effect(() => {
+		if (activeTab === 'wall' && !data.event.showWall) activeTab = 'info';
+		if (activeTab === 'polls' && !data.event.showPolls) activeTab = 'info';
+		if (activeTab === 'potluck' && !data.event.showPotluck) activeTab = 'info';
+		if (activeTab === 'gallery' && !data.event.showGallery) activeTab = 'info';
+		if (activeTab === 'playlist' && !data.event.playlistUrl) activeTab = 'info';
+	});
+
+	$effect(() => {
 		if (navEl) {
 			const activeBtn = navEl.querySelector<HTMLElement>('.tab-btn.active');
 			activeBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -391,54 +399,62 @@
 				<span>Infos & RSVP</span>
 			</button>
 
-			<button
-				type="button"
-				class="tab-btn {activeTab === 'wall' ? 'active' : ''}"
-				onclick={(e) => selectTab('wall', e)}
-			>
-				<MessageSquare size={16} />
-				<span>Pinnwand</span>
-				{#if posts.length > 0}
-					<span class="tab-badge">{posts.length}</span>
-				{/if}
-			</button>
+			{#if data.event.showWall}
+				<button
+					type="button"
+					class="tab-btn {activeTab === 'wall' ? 'active' : ''}"
+					onclick={(e) => selectTab('wall', e)}
+				>
+					<MessageSquare size={16} />
+					<span>Pinnwand</span>
+					{#if posts.length > 0}
+						<span class="tab-badge">{posts.length}</span>
+					{/if}
+				</button>
+			{/if}
 
-			<button
-				type="button"
-				class="tab-btn {activeTab === 'polls' ? 'active' : ''}"
-				onclick={(e) => selectTab('polls', e)}
-				onpointerdown={(e) => selectTab('polls', e)}
-			>
-				<Vote size={16} />
-				<span>Umfragen</span>
-				{#if polls.length > 0}
-					<span class="tab-badge">{polls.length}</span>
-				{/if}
-			</button>
+			{#if data.event.showPolls}
+				<button
+					type="button"
+					class="tab-btn {activeTab === 'polls' ? 'active' : ''}"
+					onclick={(e) => selectTab('polls', e)}
+					onpointerdown={(e) => selectTab('polls', e)}
+				>
+					<Vote size={16} />
+					<span>Umfragen</span>
+					{#if polls.length > 0}
+						<span class="tab-badge">{polls.length}</span>
+					{/if}
+				</button>
+			{/if}
 
-			<button
-				type="button"
-				class="tab-btn {activeTab === 'potluck' ? 'active' : ''}"
-				onclick={(e) => selectTab('potluck', e)}
-			>
-				<Utensils size={16} />
-				<span>Mitbringliste</span>
-				{#if potluckItems.length > 0}
-					<span class="tab-badge">{potluckItems.length}</span>
-				{/if}
-			</button>
+			{#if data.event.showPotluck}
+				<button
+					type="button"
+					class="tab-btn {activeTab === 'potluck' ? 'active' : ''}"
+					onclick={(e) => selectTab('potluck', e)}
+				>
+					<Utensils size={16} />
+					<span>Mitbringliste</span>
+					{#if potluckItems.length > 0}
+						<span class="tab-badge">{potluckItems.length}</span>
+					{/if}
+				</button>
+			{/if}
 
-			<button
-				type="button"
-				class="tab-btn {activeTab === 'gallery' ? 'active' : ''}"
-				onclick={(e) => selectTab('gallery', e)}
-			>
-				<Camera size={16} />
-				<span>Galerie</span>
-				{#if mediaList.length > 0}
-					<span class="tab-badge">{mediaList.length}</span>
-				{/if}
-			</button>
+			{#if data.event.showGallery}
+				<button
+					type="button"
+					class="tab-btn {activeTab === 'gallery' ? 'active' : ''}"
+					onclick={(e) => selectTab('gallery', e)}
+				>
+					<Camera size={16} />
+					<span>Galerie</span>
+					{#if mediaList.length > 0}
+						<span class="tab-badge">{mediaList.length}</span>
+					{/if}
+				</button>
+			{/if}
 
 			{#if data.event.playlistUrl}
 				<button
@@ -751,7 +767,7 @@
 			</Card>
 
 			<!-- TAB 2: WALL -->
-		{:else if activeTab === 'wall'}
+		{:else if activeTab === 'wall' && data.event.showWall}
 			<Card title="Pinnwand" subtitle="Hinterlasse eine Nachricht oder Glückwünsche.">
 				{#if !data.currentGuest}
 					<div class="name-gate-banner">
@@ -859,7 +875,7 @@
 			</Card>
 
 			<!-- TAB 3: POLLS -->
-		{:else if activeTab === 'polls'}
+		{:else if activeTab === 'polls' && data.event.showPolls}
 			<div class="polls-container">
 				{#if polls.length === 0}
 					<Card>
@@ -924,7 +940,7 @@
 					{/each}
 				{/if}
 			</div>
-		{:else if activeTab === 'gallery'}
+		{:else if activeTab === 'gallery' && data.event.showGallery}
 			<Card
 				title="Fotos & Videos"
 				subtitle="Lade deine Aufnahmen hoch oder stöbere durch die Galerie."
@@ -941,7 +957,7 @@
 					}}
 				/>
 			</Card>
-		{:else if activeTab === 'potluck'}
+		{:else if activeTab === 'potluck' && data.event.showPotluck}
 			<Card title={t('potluck.title')} subtitle={t('potluck.subtitle')}>
 				{#if data.currentGuest}
 					<form
@@ -1036,6 +1052,13 @@
 								allowfullscreen
 							></iframe>
 						</div>
+
+						{#if playlistEmbed.type === 'youtube'}
+							<div class="yt-hint-box">
+								<Music size={15} />
+								<span>{t('playlist.youtubeHint')}</span>
+							</div>
+						{/if}
 					{/if}
 
 					<div class="playlist-actions">
@@ -1836,6 +1859,19 @@
 	.playlist-embed-wrap.is-spotify {
 		aspect-ratio: unset;
 		height: 380px;
+	}
+
+	.yt-hint-box {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-xs);
+		line-height: var(--leading-normal);
+		color: var(--text-secondary);
+		background-color: var(--bg-canvas);
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		padding: var(--space-2) var(--space-3);
 	}
 
 	.playlist-iframe {

@@ -102,6 +102,13 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 		throw error(401, 'Unauthorized: please provide guest or host credentials to upload.');
 	}
 
+	if (!locals.user) {
+		const ev = findEventById(eventId);
+		if (ev && !ev.showGallery) {
+			throw error(403, 'Galerie-Uploads sind für dieses Event deaktiviert.');
+		}
+	}
+
 	// Enforce the per-event storage quota. Previously only the per-file limit was
 	// checked, so one guest could fill the server disk with many maximum-size files
 	// while the admin UI showed quotaPerEventMb as if it were active.

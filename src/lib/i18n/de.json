@@ -44,7 +44,13 @@
 		"countdownMinutes": "Min.",
 		"countdownSeconds": "Sek.",
 		"scrollLeft": "Nach links scrollen",
-		"scrollRight": "Nach rechts scrollen"
+		"scrollRight": "Nach rechts scrollen",
+		"featuresTitle": "Gäste-Funktionen & Reiter",
+		"featuresSubtitle": "Aktiviere oder deaktiviere einzelne Reiter für Gäste auf der Einladungsseite.",
+		"showWall": "Pinnwand anzeigen",
+		"showPolls": "Umfragen anzeigen",
+		"showPotluck": "Mitbringliste anzeigen",
+		"showGallery": "Foto- & Video-Galerie anzeigen"
 	},
 	"rsvp": {
 		"title": "Deine Rückmeldung",
@@ -105,7 +111,8 @@
 		"open": "In YouTube Music öffnen",
 		"openSpotify": "In Spotify öffnen",
 		"openGeneric": "Playlist öffnen",
-		"embedNotice": "Party-Playlist"
+		"embedNotice": "Party-Playlist",
+		"youtubeHint": "Tippe oben rechts im Player auf das Listen-Symbol (☰), um die Song-Liste einzublenden, oder öffne die Playlist direkt in der App."
 	},
 	"partyMode": {
 		"title": "Party-Modus",

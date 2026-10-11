@@ -317,6 +317,17 @@ CREATE TABLE IF NOT EXISTS potluck_items (
 CREATE INDEX IF NOT EXISTS idx_potluck_items_event
   ON potluck_items(event_id, created_at);
 `
+	],
+	[
+		'010_event_feature_flags.sql',
+		`
+-- Feature toggles for events (Pinnwand, Umfragen, Mitbringliste, Galerie).
+-- Allows hosts to disable specific tabs on the guest invitation page.
+ALTER TABLE events ADD COLUMN show_wall INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE events ADD COLUMN show_polls INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE events ADD COLUMN show_potluck INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE events ADD COLUMN show_gallery INTEGER NOT NULL DEFAULT 1;
+`
 	]
 ];
 

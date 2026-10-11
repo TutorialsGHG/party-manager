@@ -5,6 +5,7 @@ import {
 	findEventById,
 	findEventByToken,
 	regenerateEventToken,
+	updateEventFeatures,
 	deleteEvent
 } from '../../../src/lib/server/db/repositories/event.repository';
 import {
@@ -112,6 +113,48 @@ describe('Events, Guests & RSVP Modules', () => {
 		expect(summary.totalAttending).toBe(3); // 1 guest + 2 companions
 		expect(summary.attendees).toHaveLength(1);
 		expect(summary.attendees[0].name).toBe('Markus');
+	});
+
+	it('should support enabling/disabling feature tabs and updating feature flags', () => {
+		// Default: all true
+		const event = createEvent(hostId, {
+			title: 'Features Event',
+			dateStart: '2026-09-15T18:00:00.000Z'
+		});
+		expect(event.showWall).toBe(true);
+		expect(event.showPolls).toBe(true);
+		expect(event.showPotluck).toBe(true);
+		expect(event.showGallery).toBe(true);
+
+		// Guest token view reflects defaults
+		let guestView = findEventByToken(event.token!);
+		expect(guestView?.showWall).toBe(true);
+		expect(guestView?.showPolls).toBe(true);
+		expect(guestView?.showPotluck).toBe(true);
+		expect(guestView?.showGallery).toBe(true);
+
+		// Host updates feature flags: disable polls & potluck
+		const updated = updateEventFeatures(event.id, hostId, {
+			showWall: true,
+			showPolls: false,
+			showPotluck: false,
+			showGallery: true
+		});
+		expect(updated).toBe(true);
+
+		// Check updated host view
+		const hostView = findEventById(event.id, hostId);
+		expect(hostView?.showWall).toBe(true);
+		expect(hostView?.showPolls).toBe(false);
+		expect(hostView?.showPotluck).toBe(false);
+		expect(hostView?.showGallery).toBe(true);
+
+		// Check updated guest view
+		guestView = findEventByToken(event.token!);
+		expect(guestView?.showWall).toBe(true);
+		expect(guestView?.showPolls).toBe(false);
+		expect(guestView?.showPotluck).toBe(false);
+		expect(guestView?.showGallery).toBe(true);
 	});
 
 	it('should regenerate token and invalidate the old link', () => {
