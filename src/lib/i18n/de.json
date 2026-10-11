@@ -101,7 +101,9 @@
 		"title": "Party-Playlist",
 		"subtitle": "Höre schon jetzt in den Party-Soundtrack rein.",
 		"open": "In YouTube Music öffnen",
-		"embedNotice": "YouTube Music Playlist"
+		"openSpotify": "In Spotify öffnen",
+		"openGeneric": "Playlist öffnen",
+		"embedNotice": "Party-Playlist"
 	},
 	"partyMode": {
 		"title": "Party-Modus",

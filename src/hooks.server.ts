@@ -59,7 +59,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// 3. Strict Security Headers
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('X-Frame-Options', 'DENY');
-	response.headers.set('Referrer-Policy', 'no-referrer');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
 
 	// HSTS only when the app is actually served over TLS; sending it over plain
@@ -79,10 +79,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		response.headers.set('Vary', 'Cookie');
 	}
 
-	// CSP: Strictest local self policy with zero external hosts allowed
+	// CSP: Strictest local self policy with zero external hosts allowed except embedded party playlists
 	response.headers.set(
 		'Content-Security-Policy',
-		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; frame-ancestors 'none';"
+		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://open.spotify.com; frame-ancestors 'none';"
 	);
 
 	return response;

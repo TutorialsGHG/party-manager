@@ -170,16 +170,25 @@ html {
 	line-height: 1.45;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	-webkit-text-size-adjust: 100%;
 	text-size-adjust: 100%;
+	width: 100%;
+	max-width: 100%;
+	overflow-x: hidden;
+	overscroll-behavior-x: none;
 }
 
 body {
 	min-height: 100dvh;
+	width: 100%;
+	max-width: 100%;
 	padding-top: env(safe-area-inset-top, 0);
 	padding-right: env(safe-area-inset-right, 0);
 	padding-bottom: env(safe-area-inset-bottom, 0);
 	padding-left: env(safe-area-inset-left, 0);
 	overflow-x: hidden;
+	overscroll-behavior-x: none;
+	position: relative;
 }
 
 /* Accessible Focus Ring */

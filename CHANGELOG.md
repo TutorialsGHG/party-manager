@@ -4,6 +4,12 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ## [Unreleased]
 
+### Fixed
+
+- **Party-Playlist iframe & CSP:** Content-Security-Policy um `frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com https://open.spotify.com;` erweitert und `Referrer-Policy: strict-origin-when-cross-origin` gesetzt, damit eingebettete YouTube- und Spotify-Playlists zuverlässig laden.
+- **Segmentierte Navigation & Überlauf:** Horizontales Scrollen ohne Scrollleiste für die Event-Navigation hinzugefügt, Text-Umbruch unterbunden (`white-space: nowrap`) und automatisches Hineinscrollen beim Tab-Wechsel integriert.
+- **Mobile Viewport & Horizontales Panning:** Horizontale Überläufe auf mobilen Geräten durch `width: 100%`, `max-width: 100%`, `overflow-x: hidden` und `overscroll-behavior-x: none` auf `html`, `body` und `.guest-page` behoben; automatischen Zoom bei Eingaben und unerwünschtes Verschieben nach links/rechts auf Smartphones unterbunden.
+
 ### Added
 
 - **Mitbringliste (Potluck):** Gemeinschaftliche Liste für Wünsche und Mitbringsel

@@ -77,6 +77,23 @@
 		border: 1px solid var(--border-subtle);
 		border-radius: var(--radius-lg);
 		box-shadow: var(--shadow-sm);
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+
+	@media (max-width: 380px) {
+		.countdown-grid {
+			gap: var(--space-1);
+			padding: var(--space-2) var(--space-2);
+		}
+
+		.time-block {
+			min-width: 36px;
+		}
+
+		.num {
+			font-size: var(--text-xl);
+		}
 	}
 
 	.time-block {

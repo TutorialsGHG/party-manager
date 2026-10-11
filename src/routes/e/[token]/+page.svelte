@@ -45,11 +45,71 @@
 	let potluckItems = $state<any[]>([]);
 	let newPotluckTitle = $state('');
 
-	function getYouTubePlaylistId(url?: string): string | null {
-		if (!url) return null;
-		const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
-		return match ? match[1] : null;
+	let navEl = $state<HTMLElement | null>(null);
+
+	function selectTab(tab: typeof activeTab, e?: Event) {
+		activeTab = tab;
+		const btn = (e?.currentTarget || e?.target) as HTMLElement | null;
+		btn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
 	}
+
+	$effect(() => {
+		if (navEl) {
+			const activeBtn = navEl.querySelector<HTMLElement>('.tab-btn.active');
+			activeBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+		}
+	});
+
+	let playlistEmbed = $derived.by(() => {
+		const rawUrl = data.event?.playlistUrl?.trim();
+		if (!rawUrl) return null;
+
+		// 1. YouTube playlist
+		const ytListMatch = rawUrl.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+		if (ytListMatch) {
+			return {
+				type: 'youtube',
+				url: `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(ytListMatch[1])}`
+			};
+		}
+
+		// 2. YouTube single track or video
+		const ytVideoMatch = rawUrl.match(
+			/(?:youtu\.be\/|youtube\.com\/(?:watch\?.*v=|embed\/|v\/)|music\.youtube\.com\/(?:watch\?.*v=))([a-zA-Z0-9_-]{11})/
+		);
+		if (ytVideoMatch) {
+			return {
+				type: 'youtube',
+				url: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(ytVideoMatch[1])}`
+			};
+		}
+
+		// 3. Spotify playlist, track, or album
+		const spotifyMatch = rawUrl.match(/spotify\.com\/(playlist|track|album)\/([a-zA-Z0-9]+)/);
+		if (spotifyMatch) {
+			return {
+				type: 'spotify',
+				url: `https://open.spotify.com/embed/${spotifyMatch[1]}/${spotifyMatch[2]}?utm_source=generator`
+			};
+		}
+
+		return null;
+	});
+
+	let playlistOpenLabel = $derived.by(() => {
+		const url = data.event?.playlistUrl || '';
+		if (url.includes('spotify.com')) {
+			return t('playlist.openSpotify');
+		}
+		if (
+			url.includes('music.youtube.com') ||
+			url.includes('youtube.com') ||
+			url.includes('youtu.be')
+		) {
+			return t('playlist.open');
+		}
+		return t('playlist.openGeneric');
+	});
 
 	// RSVP state
 	let rsvpStatus = $state<'yes' | 'maybe' | 'no'>('yes');
@@ -285,11 +345,11 @@
 	</header>
 
 	<!-- Segmented Navigation Bar -->
-	<nav class="tabs-nav" aria-label="Event-Navigation">
+	<nav class="tabs-nav" aria-label="Event-Navigation" bind:this={navEl}>
 		<button
 			type="button"
 			class="tab-btn {activeTab === 'info' ? 'active' : ''}"
-			onclick={() => (activeTab = 'info')}
+			onclick={(e) => selectTab('info', e)}
 		>
 			<Users size={16} />
 			<span>Infos & RSVP</span>
@@ -298,7 +358,7 @@
 		<button
 			type="button"
 			class="tab-btn {activeTab === 'wall' ? 'active' : ''}"
-			onclick={() => (activeTab = 'wall')}
+			onclick={(e) => selectTab('wall', e)}
 		>
 			<MessageSquare size={16} />
 			<span>Pinnwand</span>
@@ -310,8 +370,8 @@
 		<button
 			type="button"
 			class="tab-btn {activeTab === 'polls' ? 'active' : ''}"
-			onclick={() => (activeTab = 'polls')}
-			onpointerdown={() => (activeTab = 'polls')}
+			onclick={(e) => selectTab('polls', e)}
+			onpointerdown={(e) => selectTab('polls', e)}
 		>
 			<Vote size={16} />
 			<span>Umfragen</span>
@@ -323,7 +383,7 @@
 		<button
 			type="button"
 			class="tab-btn {activeTab === 'potluck' ? 'active' : ''}"
-			onclick={() => (activeTab = 'potluck')}
+			onclick={(e) => selectTab('potluck', e)}
 		>
 			<Utensils size={16} />
 			<span>Mitbringliste</span>
@@ -335,7 +395,7 @@
 		<button
 			type="button"
 			class="tab-btn {activeTab === 'gallery' ? 'active' : ''}"
-			onclick={() => (activeTab = 'gallery')}
+			onclick={(e) => selectTab('gallery', e)}
 		>
 			<Camera size={16} />
 			<span>Galerie</span>
@@ -348,7 +408,7 @@
 			<button
 				type="button"
 				class="tab-btn {activeTab === 'playlist' ? 'active' : ''}"
-				onclick={() => (activeTab = 'playlist')}
+				onclick={(e) => selectTab('playlist', e)}
 			>
 				<Music size={16} />
 				<span>Playlist</span>
@@ -905,15 +965,15 @@
 		{:else if activeTab === 'playlist' && data.event.playlistUrl}
 			<Card title={t('playlist.title')} subtitle={t('playlist.subtitle')}>
 				<div class="playlist-card-content">
-					{#if getYouTubePlaylistId(data.event.playlistUrl)}
-						<div class="playlist-embed-wrap">
+					{#if playlistEmbed}
+						<div class="playlist-embed-wrap" class:is-spotify={playlistEmbed.type === 'spotify'}>
 							<iframe
 								title={t('playlist.embedNotice')}
-								src="https://www.youtube-nocookie.com/embed/videoseries?list={getYouTubePlaylistId(
-									data.event.playlistUrl
-								)}"
+								src={playlistEmbed.url}
 								class="playlist-iframe"
-								allow="autoplay; encrypted-media; picture-in-picture"
+								loading="lazy"
+								allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+								referrerpolicy="strict-origin-when-cross-origin"
 								allowfullscreen
 							></iframe>
 						</div>
@@ -927,7 +987,7 @@
 							class="playlist-launch-btn"
 						>
 							<Music size={18} />
-							<span>{t('playlist.open')}</span>
+							<span>{playlistOpenLabel}</span>
 							<ExternalLink size={16} />
 						</a>
 					</div>
@@ -971,15 +1031,27 @@
 		min-height: 100dvh;
 		background-color: var(--bg-canvas);
 		padding: var(--space-4) var(--space-4) calc(var(--space-8) + env(safe-area-inset-bottom, 0));
+		width: 100%;
 		max-width: var(--max-content-width);
+		box-sizing: border-box;
 		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+		overflow-x: hidden;
+	}
+
+	@media (max-width: 480px) {
+		.guest-page {
+			padding: var(--space-3) var(--space-3) calc(var(--space-8) + env(safe-area-inset-bottom, 0));
+			gap: var(--space-3);
+		}
 	}
 
 	.event-hero {
 		margin-top: var(--space-2);
+		width: 100%;
+		max-width: 100%;
 	}
 
 	.hero-card {
@@ -994,6 +1066,15 @@
 		align-items: center;
 		text-align: center;
 		gap: var(--space-3);
+		width: 100%;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+
+	@media (max-width: 480px) {
+		.hero-card {
+			padding: var(--space-5) var(--space-3);
+		}
 	}
 
 	.date-chip {
@@ -1013,6 +1094,9 @@
 		font-weight: 800;
 		line-height: 1.15;
 		color: var(--text-primary);
+		word-break: break-word;
+		overflow-wrap: break-word;
+		max-width: 100%;
 	}
 
 	.event-desc {
@@ -1020,7 +1104,10 @@
 		color: var(--text-secondary);
 		line-height: 1.5;
 		max-width: 480px;
+		width: 100%;
 		white-space: pre-wrap;
+		word-break: break-word;
+		overflow-wrap: break-word;
 	}
 
 	.countdown-section {
@@ -1041,15 +1128,27 @@
 		border: 1px solid var(--border-subtle);
 		box-shadow: var(--shadow-sm);
 		gap: var(--space-1);
+		overflow-x: auto;
+		overflow-y: hidden;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+		scroll-behavior: smooth;
+		width: 100%;
+		max-width: 100%;
+		box-sizing: border-box;
+	}
+
+	.tabs-nav::-webkit-scrollbar {
+		display: none;
 	}
 
 	.tab-btn {
-		flex: 1;
+		flex: 1 0 auto;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3);
+		gap: var(--space-1-5, 6px);
+		padding: var(--space-2) var(--space-2-5, 10px);
 		border-radius: var(--radius-md);
 		border: none;
 		background: transparent;
@@ -1057,6 +1156,7 @@
 		font-family: inherit;
 		font-size: var(--text-sm);
 		font-weight: 600;
+		white-space: nowrap;
 		cursor: pointer;
 		pointer-events: auto;
 		touch-action: manipulation;
@@ -1064,6 +1164,10 @@
 		transition:
 			background-color var(--duration-fast) ease,
 			color var(--duration-fast) ease;
+	}
+
+	.tab-btn:hover {
+		color: var(--text-primary);
 	}
 
 	.tab-btn.active {
@@ -1422,6 +1526,8 @@
 		line-height: 1.5;
 		color: var(--text-primary);
 		white-space: pre-wrap;
+		word-break: break-word;
+		overflow-wrap: break-word;
 	}
 
 	/* Poll styles */
@@ -1583,19 +1689,31 @@
 		border-radius: var(--radius-lg);
 		overflow: hidden;
 		aspect-ratio: 16 / 9;
-		max-height: 400px;
-		background: #000;
+		min-height: 240px;
+		max-height: 420px;
+		background: var(--bg-surface-raised, #18181b);
+		border: 1px solid var(--border-subtle);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.playlist-embed-wrap.is-spotify {
+		aspect-ratio: unset;
+		height: 380px;
 	}
 
 	.playlist-iframe {
 		width: 100%;
 		height: 100%;
 		border: none;
+		display: block;
 	}
 
 	.playlist-actions {
 		display: flex;
 		justify-content: center;
+		padding-top: var(--space-1);
 	}
 
 	.playlist-launch-btn {
@@ -1605,13 +1723,22 @@
 		padding: var(--space-3) var(--space-5);
 		border-radius: var(--radius-pill);
 		background-color: var(--accent);
-		color: #ffffff;
+		color: var(--accent-contrast, #ffffff);
 		font-weight: 600;
+		font-size: var(--text-sm);
 		text-decoration: none;
-		transition: opacity var(--transition-fast);
+		box-shadow: var(--shadow-sm);
+		transition:
+			opacity var(--duration-fast) ease,
+			transform var(--duration-fast) ease;
 	}
 
 	.playlist-launch-btn:hover {
-		opacity: 0.9;
+		opacity: 0.92;
+		transform: translateY(-1px);
+	}
+
+	.playlist-launch-btn:active {
+		transform: translateY(0);
 	}
 </style>

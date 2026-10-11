@@ -101,7 +101,9 @@
 		"title": "Party playlist",
 		"subtitle": "Listen to the party soundtrack in advance.",
 		"open": "Open in YouTube Music",
-		"embedNotice": "YouTube Music Playlist"
+		"openSpotify": "Open in Spotify",
+		"openGeneric": "Open playlist",
+		"embedNotice": "Party playlist"
 	},
 	"partyMode": {
 		"title": "Party mode",
