@@ -42,7 +42,9 @@
 		"countdownDays": "Days",
 		"countdownHours": "Hrs",
 		"countdownMinutes": "Mins",
-		"countdownSeconds": "Secs"
+		"countdownSeconds": "Secs",
+		"scrollLeft": "Scroll left",
+		"scrollRight": "Scroll right"
 	},
 	"rsvp": {
 		"title": "Your RSVP",

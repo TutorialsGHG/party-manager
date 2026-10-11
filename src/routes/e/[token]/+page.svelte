@@ -29,7 +29,9 @@
 		Share2,
 		Copy,
 		Utensils,
-		Music
+		Music,
+		ChevronLeft,
+		ChevronRight
 	} from '@lucide/svelte';
 	import GalleryGrid from '$lib/features/gallery/GalleryGrid.svelte';
 	import type { MediaItem } from '$lib/features/gallery/types';
@@ -46,18 +48,42 @@
 	let newPotluckTitle = $state('');
 
 	let navEl = $state<HTMLElement | null>(null);
+	let canScrollLeft = $state(false);
+	let canScrollRight = $state(false);
+
+	function updateScrollIndicators() {
+		if (!navEl) return;
+		canScrollLeft = navEl.scrollLeft > 6;
+		canScrollRight = navEl.scrollLeft + navEl.clientWidth < navEl.scrollWidth - 6;
+	}
+
+	function scrollNav(offset: number) {
+		if (!navEl) return;
+		navEl.scrollBy({ left: offset, behavior: 'smooth' });
+	}
 
 	function selectTab(tab: typeof activeTab, e?: Event) {
 		activeTab = tab;
 		const btn = (e?.currentTarget || e?.target) as HTMLElement | null;
 		btn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+		setTimeout(updateScrollIndicators, 150);
 	}
 
 	$effect(() => {
 		if (navEl) {
 			const activeBtn = navEl.querySelector<HTMLElement>('.tab-btn.active');
 			activeBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+			updateScrollIndicators();
 		}
+	});
+
+	onMount(() => {
+		updateScrollIndicators();
+		const resizeObserver = new ResizeObserver(() => {
+			updateScrollIndicators();
+		});
+		if (navEl) resizeObserver.observe(navEl);
+		return () => resizeObserver.disconnect();
 	});
 
 	let playlistEmbed = $derived.by(() => {
@@ -345,76 +371,109 @@
 	</header>
 
 	<!-- Segmented Navigation Bar -->
-	<nav class="tabs-nav" aria-label="Event-Navigation" bind:this={navEl}>
-		<button
-			type="button"
-			class="tab-btn {activeTab === 'info' ? 'active' : ''}"
-			onclick={(e) => selectTab('info', e)}
+	<div
+		class="tabs-nav-wrapper"
+		class:can-scroll-left={canScrollLeft}
+		class:can-scroll-right={canScrollRight}
+	>
+		<nav
+			class="tabs-nav"
+			aria-label="Event-Navigation"
+			bind:this={navEl}
+			onscroll={updateScrollIndicators}
 		>
-			<Users size={16} />
-			<span>Infos & RSVP</span>
-		</button>
-
-		<button
-			type="button"
-			class="tab-btn {activeTab === 'wall' ? 'active' : ''}"
-			onclick={(e) => selectTab('wall', e)}
-		>
-			<MessageSquare size={16} />
-			<span>Pinnwand</span>
-			{#if posts.length > 0}
-				<span class="tab-badge">{posts.length}</span>
-			{/if}
-		</button>
-
-		<button
-			type="button"
-			class="tab-btn {activeTab === 'polls' ? 'active' : ''}"
-			onclick={(e) => selectTab('polls', e)}
-			onpointerdown={(e) => selectTab('polls', e)}
-		>
-			<Vote size={16} />
-			<span>Umfragen</span>
-			{#if polls.length > 0}
-				<span class="tab-badge">{polls.length}</span>
-			{/if}
-		</button>
-
-		<button
-			type="button"
-			class="tab-btn {activeTab === 'potluck' ? 'active' : ''}"
-			onclick={(e) => selectTab('potluck', e)}
-		>
-			<Utensils size={16} />
-			<span>Mitbringliste</span>
-			{#if potluckItems.length > 0}
-				<span class="tab-badge">{potluckItems.length}</span>
-			{/if}
-		</button>
-
-		<button
-			type="button"
-			class="tab-btn {activeTab === 'gallery' ? 'active' : ''}"
-			onclick={(e) => selectTab('gallery', e)}
-		>
-			<Camera size={16} />
-			<span>Galerie</span>
-			{#if mediaList.length > 0}
-				<span class="tab-badge">{mediaList.length}</span>
-			{/if}
-		</button>
-
-		{#if data.event.playlistUrl}
 			<button
 				type="button"
-				class="tab-btn {activeTab === 'playlist' ? 'active' : ''}"
-				onclick={(e) => selectTab('playlist', e)}
+				class="tab-btn {activeTab === 'info' ? 'active' : ''}"
+				onclick={(e) => selectTab('info', e)}
 			>
-				<Music size={16} />
-				<span>Playlist</span>
+				<Users size={16} />
+				<span>Infos & RSVP</span>
+			</button>
+
+			<button
+				type="button"
+				class="tab-btn {activeTab === 'wall' ? 'active' : ''}"
+				onclick={(e) => selectTab('wall', e)}
+			>
+				<MessageSquare size={16} />
+				<span>Pinnwand</span>
+				{#if posts.length > 0}
+					<span class="tab-badge">{posts.length}</span>
+				{/if}
+			</button>
+
+			<button
+				type="button"
+				class="tab-btn {activeTab === 'polls' ? 'active' : ''}"
+				onclick={(e) => selectTab('polls', e)}
+				onpointerdown={(e) => selectTab('polls', e)}
+			>
+				<Vote size={16} />
+				<span>Umfragen</span>
+				{#if polls.length > 0}
+					<span class="tab-badge">{polls.length}</span>
+				{/if}
+			</button>
+
+			<button
+				type="button"
+				class="tab-btn {activeTab === 'potluck' ? 'active' : ''}"
+				onclick={(e) => selectTab('potluck', e)}
+			>
+				<Utensils size={16} />
+				<span>Mitbringliste</span>
+				{#if potluckItems.length > 0}
+					<span class="tab-badge">{potluckItems.length}</span>
+				{/if}
+			</button>
+
+			<button
+				type="button"
+				class="tab-btn {activeTab === 'gallery' ? 'active' : ''}"
+				onclick={(e) => selectTab('gallery', e)}
+			>
+				<Camera size={16} />
+				<span>Galerie</span>
+				{#if mediaList.length > 0}
+					<span class="tab-badge">{mediaList.length}</span>
+				{/if}
+			</button>
+
+			{#if data.event.playlistUrl}
+				<button
+					type="button"
+					class="tab-btn {activeTab === 'playlist' ? 'active' : ''}"
+					onclick={(e) => selectTab('playlist', e)}
+				>
+					<Music size={16} />
+					<span>Playlist</span>
+				</button>
+			{/if}
+		</nav>
+
+		{#if canScrollLeft}
+			<button
+				type="button"
+				class="scroll-indicator scroll-left"
+				onclick={() => scrollNav(-140)}
+				aria-label={t('events.scrollLeft')}
+			>
+				<ChevronLeft size={16} />
 			</button>
 		{/if}
-	</nav>
+
+		{#if canScrollRight}
+			<button
+				type="button"
+				class="scroll-indicator scroll-right"
+				onclick={() => scrollNav(140)}
+				aria-label={t('events.scrollRight')}
+			>
+				<ChevronRight size={16} />
+			</button>
+		{/if}
+	</div>
 
 	<main class="content-body">
 		<!-- TAB 1: INFOS & RSVP -->
@@ -1117,7 +1176,43 @@
 		justify-content: center;
 	}
 
-	/* Segmented Navigation */
+	/* Segmented Navigation Wrapper & Scroll Affordances */
+	.tabs-nav-wrapper {
+		position: relative;
+		width: 100%;
+		max-width: 100%;
+		display: flex;
+		align-items: center;
+	}
+
+	.tabs-nav-wrapper.can-scroll-left::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 1px;
+		bottom: 1px;
+		width: 24px;
+		background: linear-gradient(to right, var(--bg-surface), transparent);
+		z-index: 3;
+		pointer-events: none;
+		border-top-left-radius: var(--radius-lg);
+		border-bottom-left-radius: var(--radius-lg);
+	}
+
+	.tabs-nav-wrapper.can-scroll-right::after {
+		content: '';
+		position: absolute;
+		right: 0;
+		top: 1px;
+		bottom: 1px;
+		width: 24px;
+		background: linear-gradient(to left, var(--bg-surface), transparent);
+		z-index: 3;
+		pointer-events: none;
+		border-top-right-radius: var(--radius-lg);
+		border-bottom-right-radius: var(--radius-lg);
+	}
+
 	.tabs-nav {
 		display: flex;
 		position: relative;
@@ -1140,6 +1235,46 @@
 
 	.tabs-nav::-webkit-scrollbar {
 		display: none;
+	}
+
+	.scroll-indicator {
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 5;
+		width: 26px;
+		height: 26px;
+		border-radius: var(--radius-pill);
+		background-color: var(--bg-surface);
+		border: 1px solid var(--border-subtle);
+		color: var(--text-secondary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		box-shadow: var(--shadow-md);
+		transition:
+			opacity var(--duration-fast) ease,
+			transform var(--duration-fast) ease,
+			color var(--duration-fast) ease;
+		touch-action: manipulation;
+	}
+
+	.scroll-indicator:hover {
+		color: var(--text-primary);
+		transform: translateY(-50%) scale(1.08);
+	}
+
+	.scroll-indicator:active {
+		transform: translateY(-50%) scale(0.96);
+	}
+
+	.scroll-left {
+		left: 4px;
+	}
+
+	.scroll-right {
+		right: 4px;
 	}
 
 	.tab-btn {

@@ -42,7 +42,9 @@
 		"countdownDays": "Tage",
 		"countdownHours": "Std.",
 		"countdownMinutes": "Min.",
-		"countdownSeconds": "Sek."
+		"countdownSeconds": "Sek.",
+		"scrollLeft": "Nach links scrollen",
+		"scrollRight": "Nach rechts scrollen"
 	},
 	"rsvp": {
 		"title": "Deine Rückmeldung",
