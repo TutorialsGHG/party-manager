@@ -218,6 +218,49 @@
 		</div>
 	</Card>
 
+	<!-- Gäste-Funktionen & Reiter (Prominent platziert) -->
+	<Card title={t('events.featuresTitle')} subtitle={t('events.featuresSubtitle')}>
+		<form action="?/updateFeatures" method="POST" use:enhance class="host-form">
+			<div class="features-toggles-grid">
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showWall" bind:checked={showWall} />
+					<div class="toggle-text">
+						<strong>{t('events.showWall')}</strong>
+						<span>Nachrichten, Ankündigungen und Pinnwand-Beiträge erlauben.</span>
+					</div>
+				</label>
+
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showPolls" bind:checked={showPolls} />
+					<div class="toggle-text">
+						<strong>{t('events.showPolls')}</strong>
+						<span>Umfragen für gemeinsame Entscheidungen (z. B. Essen, Musik) bereitstellen.</span>
+					</div>
+				</label>
+
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showPotluck" bind:checked={showPotluck} />
+					<div class="toggle-text">
+						<strong>{t('events.showPotluck')}</strong>
+						<span>Mitbringliste für Speisen, Getränke und Mitbringsel aktivieren.</span>
+					</div>
+				</label>
+
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showGallery" bind:checked={showGallery} />
+					<div class="toggle-text">
+						<strong>{t('events.showGallery')}</strong>
+						<span>Gemeinsame Foto- und Video-Galerie für Gäste aktivieren.</span>
+					</div>
+				</label>
+			</div>
+
+			<div class="host-form-actions">
+				<Button type="submit" variant="primary">Funktionen speichern</Button>
+			</div>
+		</form>
+	</Card>
+
 	<!-- RSVP Summary Section -->
 	<Card
 		title="Rückmeldungen ({data.rsvp.totalAttending} Gäste)"
@@ -587,50 +630,6 @@
 			</div>
 		{/if}
 	</Card>
-
-	<!-- Gäste-Funktionen & Reiter -->
-	<Card title={t('events.featuresTitle')} subtitle={t('events.featuresSubtitle')}>
-		<form action="?/updateFeatures" method="POST" use:enhance class="host-form">
-			<div class="features-toggles-grid">
-				<label class="feature-toggle-item">
-					<input type="checkbox" name="showWall" bind:checked={showWall} />
-					<div class="toggle-text">
-						<strong>{t('events.showWall')}</strong>
-						<span>Nachrichten, Ankündigungen und Pinnwand-Beiträge erlauben.</span>
-					</div>
-				</label>
-
-				<label class="feature-toggle-item">
-					<input type="checkbox" name="showPolls" bind:checked={showPolls} />
-					<div class="toggle-text">
-						<strong>{t('events.showPolls')}</strong>
-						<span>Umfragen für gemeinsame Entscheidungen (z. B. Essen, Musik) bereitstellen.</span>
-					</div>
-				</label>
-
-				<label class="feature-toggle-item">
-					<input type="checkbox" name="showPotluck" bind:checked={showPotluck} />
-					<div class="toggle-text">
-						<strong>{t('events.showPotluck')}</strong>
-						<span>Mitbringliste für Speisen, Getränke und Mitbringsel aktivieren.</span>
-					</div>
-				</label>
-
-				<label class="feature-toggle-item">
-					<input type="checkbox" name="showGallery" bind:checked={showGallery} />
-					<div class="toggle-text">
-						<strong>{t('events.showGallery')}</strong>
-						<span>Gemeinsame Foto- und Video-Galerie für Gäste aktivieren.</span>
-					</div>
-				</label>
-			</div>
-
-			<div class="host-form-actions">
-				<Button type="submit" variant="primary">Funktionen speichern</Button>
-			</div>
-		</form>
-	</Card>
-
 	<!-- Party Playlist Card -->
 	<Card
 		title="Musik-Playlist"
