@@ -26,6 +26,7 @@ export const eventSchema = z.object({
 		.string()
 		.regex(/^#[0-9A-Fa-f]{6}$/)
 		.default('#007AFF'),
+	playlistUrl: z.string().max(500).optional().default(''),
 	maxCompanions: z.coerce.number().int().min(0).max(20).default(0)
 });
 

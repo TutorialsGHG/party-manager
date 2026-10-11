@@ -6,6 +6,21 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ### Added
 
+- **Mitbringliste (Potluck):** Gemeinschaftliche Liste für Wünsche und Mitbringsel
+  (verschlüsselt mit Event-Key, Migration 009). Host und Gäste können Einträge anlegen;
+  Gäste können Items mit 1 Klick für sich reservieren oder wieder freigeben.
+  Echtzeit-Synchronisation über SSE (`potluck:new`, `potluck:update`, `potluck:delete`),
+  vollständig über das Gast-Rate-Limit abgesichert.
+- **Party-Modus für den Host (`/events/[id]/live`):** Optimierte Vollbild-Ansicht für
+  den Musik-PC an der Bar oder Beamer. Slideshow aller hochgeladenen Party-Fotos mit
+  Live-Aktualisierung bei neuen Uploads via SSE. Wenn noch kein Bild vorhanden ist,
+  präsentiert der Bildschirm den interaktiven Empty-State: „Dein Bild jetzt hier – lad
+  es hoch!" mit großem SVG QR-Code zum direkten Scannen für Gäste an der Bar.
+- **Party-Playlist Integration (YouTube Music):** Event-Attribut für Playlist-URLs
+  (verschlüsselt gespeichert in `events.playlist_url_cipher`). Gäste erhalten einen
+  eigenen Reiter „Playlist" mit eingebettetem YouTube Music Player (`youtube-nocookie`)
+  und Direkt-Button zur App. Im Party-Modus steht dem Host ein Schnellstart-Button zur
+  Verfügung.
 - **Teilnehmende-Übersicht für den Host:** Die Host-Ansicht zeigte bislang nur
   Zähler und die Zusagen — wer die Einladung geöffnet hat, geschrieben oder
   Fotos hochgeladen hat, aber keine Rückmeldung abgibt, war dort unsichtbar.

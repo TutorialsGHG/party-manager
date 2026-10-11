@@ -288,6 +288,35 @@ CREATE TABLE IF NOT EXISTS event_announcements (
 CREATE INDEX IF NOT EXISTS idx_event_announcements_event
   ON event_announcements(event_id, created_at);
 `
+	],
+	[
+		'009_potluck_and_playlist.sql',
+		`
+-- Mitbringliste (Potluck items) and Music playlist link.
+--
+-- Potluck titles and claim names are encrypted with the event key.
+-- A host or guest can add items. Attending guests can claim or unclaim items.
+--
+-- Events table is extended with playlist_url_cipher and invite_token_cipher.
+-- Storing the invite token encrypted with the event key allows the host to display
+-- the QR code at any time (e.g. for Party Mode on the bar/music PC) without
+-- storing plaintext tokens in SQLite.
+ALTER TABLE events ADD COLUMN playlist_url_cipher TEXT;
+ALTER TABLE events ADD COLUMN invite_token_cipher TEXT;
+
+CREATE TABLE IF NOT EXISTS potluck_items (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  creator_guest_id TEXT REFERENCES guests(id) ON DELETE SET NULL,
+  title_cipher TEXT NOT NULL,
+  claimed_by_guest_id TEXT REFERENCES guests(id) ON DELETE SET NULL,
+  claimed_by_name_cipher TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_potluck_items_event
+  ON potluck_items(event_id, created_at);
+`
 	]
 ];
 

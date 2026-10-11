@@ -85,5 +85,29 @@
 		"limits": "Storage limits",
 		"smtp": "Mail settings",
 		"testEmail": "Send test email"
+	},
+	"potluck": {
+		"title": "Potluck list",
+		"subtitle": "What is still needed? Sign up or add wishlist items.",
+		"addItem": "Add item",
+		"itemPlaceholder": "e.g. Baguette, Case of beer, Ice cubes...",
+		"claim": "I'll bring this",
+		"unclaim": "Cancel bring",
+		"claimedBy": "Brought by",
+		"empty": "No items on the potluck list yet. Be the first to add one!",
+		"open": "Needed"
+	},
+	"playlist": {
+		"title": "Party playlist",
+		"subtitle": "Listen to the party soundtrack in advance.",
+		"open": "Open in YouTube Music",
+		"embedNotice": "YouTube Music Playlist"
+	},
+	"partyMode": {
+		"title": "Party mode",
+		"start": "Start party mode",
+		"emptyTitle": "Your photo right here – upload it now!",
+		"emptySubtitle": "Scan the QR code with your phone and share your party memories live on screen.",
+		"openPlaylist": "Play playlist"
 	}
 }

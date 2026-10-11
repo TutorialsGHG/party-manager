@@ -16,6 +16,7 @@
 	let locationName = $state('');
 	let locationAddress = $state('');
 	let selectedColor = $state<string>(PRESET_ACCENT_COLORS[0].hex);
+	let playlistUrl = $state('');
 	let maxCompanions = $state('0');
 	let loading = $state(false);
 
@@ -106,6 +107,16 @@
 				name="maxCompanions"
 				bind:value={maxCompanions}
 				hint="Diese Plätze werden Gästen fest zugeteilt. Gäste können die Anzahl nicht selbst ändern."
+			/>
+		</Card>
+
+		<Card title="Musik-Playlist (optional)">
+			<Input
+				label="Link zur Playlist (z. B. YouTube Music oder Spotify)"
+				name="playlistUrl"
+				bind:value={playlistUrl}
+				placeholder="https://music.youtube.com/playlist?list=..."
+				hint="Erscheint als 'Playlist'-Reiter bei deinen Gästen und im Party-Modus für den Bar-PC."
 			/>
 		</Card>
 

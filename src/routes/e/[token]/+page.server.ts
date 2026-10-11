@@ -25,6 +25,13 @@ import {
 	addPollOption,
 	isPollInEvent
 } from '$lib/server/db/repositories/poll.repository';
+import {
+	listPotluckItems,
+	createPotluckItem,
+	claimPotluckItem,
+	unclaimPotluckItem,
+	deletePotluckItem
+} from '$lib/server/db/repositories/potluck.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { GUEST_COOKIE_OPTIONS } from '$lib/server/auth/session';
 import { rsvpSchema } from '$lib/shared/schemas';
@@ -169,6 +176,7 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 	const announcements = guestSeesAnnouncements(event.id, currentGuest)
 		? listAnnouncements(event.id)
 		: [];
+	const potluckItems = listPotluckItems(event.id);
 
 	return {
 		event,
@@ -181,7 +189,8 @@ export const load: PageServerLoad = async ({ params, url, cookies, setHeaders })
 		wallPosts,
 		polls,
 		mediaItems,
-		announcements
+		announcements,
+		potluckItems
 	};
 };
 
@@ -440,5 +449,98 @@ export const actions: Actions = {
 		recordGuestAttempt(event.id, auth.deviceToken);
 		sseHub.broadcast(event.id, 'poll:update', { pollId });
 		return { success: true, opt };
+	},
+
+	addPotluckItem: async ({ request, params, cookies }) => {
+		const event = findEventByToken(params.token);
+		if (!event) throw error(404, 'Event nicht gefunden.');
+
+		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
+		if (!auth.ok) return auth.failure;
+
+		const formData = await request.formData();
+		const title = String(formData.get('title') || '').trim();
+		if (!title || title.length > 100) {
+			return fail(400, {
+				error: 'Bitte gib einen Namen für das Mitbringsel ein (max. 100 Zeichen).'
+			});
+		}
+
+		const item = createPotluckItem(event.id, title, auth.guest.id);
+		recordGuestAttempt(event.id, auth.deviceToken, 'write');
+		sseHub.broadcast(event.id, 'potluck:new', item);
+
+		return { success: true };
+	},
+
+	claimPotluckItem: async ({ request, params, cookies }) => {
+		const event = findEventByToken(params.token);
+		if (!event) throw error(404, 'Event nicht gefunden.');
+
+		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
+		if (!auth.ok) return auth.failure;
+
+		const formData = await request.formData();
+		const itemId = String(formData.get('itemId') || '');
+		if (!itemId) {
+			return fail(400, { error: 'Eintrags-ID fehlt.' });
+		}
+
+		const item = claimPotluckItem(event.id, itemId, auth.guest.id, auth.guest.name);
+		if (!item) {
+			return fail(400, {
+				error: 'Eintrag konnte nicht reserviert werden oder ist bereits vergeben.'
+			});
+		}
+		recordGuestAttempt(event.id, auth.deviceToken, 'write');
+		sseHub.broadcast(event.id, 'potluck:update', item);
+
+		return { success: true };
+	},
+
+	unclaimPotluckItem: async ({ request, params, cookies }) => {
+		const event = findEventByToken(params.token);
+		if (!event) throw error(404, 'Event nicht gefunden.');
+
+		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
+		if (!auth.ok) return auth.failure;
+
+		const formData = await request.formData();
+		const itemId = String(formData.get('itemId') || '');
+		if (!itemId) {
+			return fail(400, { error: 'Eintrags-ID fehlt.' });
+		}
+
+		const item = unclaimPotluckItem(event.id, itemId, auth.guest.id, false);
+		if (!item) {
+			return fail(400, { error: 'Zusage konnte nicht zurückgezogen werden.' });
+		}
+		recordGuestAttempt(event.id, auth.deviceToken, 'write');
+		sseHub.broadcast(event.id, 'potluck:update', item);
+
+		return { success: true };
+	},
+
+	deletePotluckItem: async ({ request, params, cookies }) => {
+		const event = findEventByToken(params.token);
+		if (!event) throw error(404, 'Event nicht gefunden.');
+
+		const auth = await authorizeGuestAction(event.id, cookies, undefined, 'write');
+		if (!auth.ok) return auth.failure;
+
+		const formData = await request.formData();
+		const itemId = String(formData.get('itemId') || '');
+		if (!itemId) {
+			return fail(400, { error: 'Eintrags-ID fehlt.' });
+		}
+
+		const deleted = deletePotluckItem(event.id, itemId, auth.guest.id, false);
+		if (!deleted) {
+			return fail(403, { error: 'Nur der Ersteller kann diesen Eintrag löschen.' });
+		}
+		recordGuestAttempt(event.id, auth.deviceToken, 'write');
+		sseHub.broadcast(event.id, 'potluck:delete', { id: itemId });
+
+		return { success: true };
 	}
 };

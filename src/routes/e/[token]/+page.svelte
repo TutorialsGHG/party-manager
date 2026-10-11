@@ -27,17 +27,29 @@
 		Plus,
 		Camera,
 		Share2,
-		Copy
+		Copy,
+		Utensils,
+		Music
 	} from '@lucide/svelte';
 	import GalleryGrid from '$lib/features/gallery/GalleryGrid.svelte';
 	import type { MediaItem } from '$lib/features/gallery/types';
 
 	let { data, form } = $props();
 
-	let activeTab = $state<'info' | 'wall' | 'polls' | 'gallery'>('info');
+	let activeTab = $state<'info' | 'potluck' | 'wall' | 'polls' | 'gallery' | 'playlist'>('info');
 
 	let guestName = $state('');
 	let showNameSheet = $state(false);
+
+	// Potluck state
+	let potluckItems = $state<any[]>([]);
+	let newPotluckTitle = $state('');
+
+	function getYouTubePlaylistId(url?: string): string | null {
+		if (!url) return null;
+		const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+		return match ? match[1] : null;
+	}
 
 	// RSVP state
 	let rsvpStatus = $state<'yes' | 'maybe' | 'no'>('yes');
@@ -87,6 +99,7 @@
 		posts = data.wallPosts || [];
 		announcements = data.announcements || [];
 		polls = data.polls || [];
+		potluckItems = data.potluckItems || [];
 		// Wrap in untrack so reading/writing newOptionText doesn't create a reactive
 		// dependency that would cause this $effect to loop infinitely.
 		untrack(() => {
@@ -166,6 +179,10 @@
 		eventSource.addEventListener('poll:update', refreshPolls);
 		eventSource.addEventListener('rsvp:update', () => void invalidateAll());
 		eventSource.addEventListener('event:companions', () => void invalidateAll());
+
+		eventSource.addEventListener('potluck:new', () => void invalidateAll());
+		eventSource.addEventListener('potluck:update', () => void invalidateAll());
+		eventSource.addEventListener('potluck:delete', () => void invalidateAll());
 
 		eventSource.addEventListener('media:new', (e) => {
 			const newMedia = JSON.parse(e.data);
@@ -305,6 +322,18 @@
 
 		<button
 			type="button"
+			class="tab-btn {activeTab === 'potluck' ? 'active' : ''}"
+			onclick={() => (activeTab = 'potluck')}
+		>
+			<Utensils size={16} />
+			<span>Mitbringliste</span>
+			{#if potluckItems.length > 0}
+				<span class="tab-badge">{potluckItems.length}</span>
+			{/if}
+		</button>
+
+		<button
+			type="button"
 			class="tab-btn {activeTab === 'gallery' ? 'active' : ''}"
 			onclick={() => (activeTab = 'gallery')}
 		>
@@ -314,6 +343,17 @@
 				<span class="tab-badge">{mediaList.length}</span>
 			{/if}
 		</button>
+
+		{#if data.event.playlistUrl}
+			<button
+				type="button"
+				class="tab-btn {activeTab === 'playlist' ? 'active' : ''}"
+				onclick={() => (activeTab = 'playlist')}
+			>
+				<Music size={16} />
+				<span>Playlist</span>
+			</button>
+		{/if}
 	</nav>
 
 	<main class="content-body">
@@ -781,6 +821,117 @@
 						// New items arrive automatically via SSE
 					}}
 				/>
+			</Card>
+		{:else if activeTab === 'potluck'}
+			<Card title={t('potluck.title')} subtitle={t('potluck.subtitle')}>
+				{#if data.currentGuest}
+					<form
+						action="?/addPotluckItem"
+						method="POST"
+						use:enhance={() => {
+							return async ({ update }) => {
+								newPotluckTitle = '';
+								await update();
+							};
+						}}
+						class="potluck-add-form"
+					>
+						<Input
+							name="title"
+							bind:value={newPotluckTitle}
+							placeholder={t('potluck.itemPlaceholder')}
+							required
+						/>
+						<Button type="submit" variant="primary" size="sm">
+							<Plus size={16} />
+							<span>{t('potluck.addItem')}</span>
+						</Button>
+					</form>
+				{/if}
+
+				<div class="potluck-list">
+					{#if potluckItems.length === 0}
+						<p class="empty-text">{t('potluck.empty')}</p>
+					{:else}
+						{#each potluckItems as item (item.id)}
+							<div class="potluck-item-card {item.claimedByGuestId ? 'claimed' : 'unclaimed'}">
+								<div class="potluck-item-info">
+									<span class="potluck-item-title">{item.title}</span>
+									{#if item.claimedByGuestId}
+										<span class="potluck-claimant">
+											<Check size={14} class="check-icon" />
+											{t('potluck.claimedBy')}: <strong>{item.claimedByName || 'Gast'}</strong>
+										</span>
+									{:else}
+										<Badge variant="accent">{t('potluck.open')}</Badge>
+									{/if}
+								</div>
+
+								<div class="potluck-item-actions">
+									{#if !item.claimedByGuestId}
+										{#if data.currentGuest}
+											<form action="?/claimPotluckItem" method="POST" use:enhance>
+												<input type="hidden" name="itemId" value={item.id} />
+												<Button type="submit" variant="primary" size="sm">
+													<Check size={14} />
+													<span>{t('potluck.claim')}</span>
+												</Button>
+											</form>
+										{/if}
+									{:else if item.claimedByGuestId === data.currentGuest?.id}
+										<form action="?/unclaimPotluckItem" method="POST" use:enhance>
+											<input type="hidden" name="itemId" value={item.id} />
+											<Button type="submit" variant="secondary" size="sm">
+												<X size={14} />
+												<span>{t('potluck.unclaim')}</span>
+											</Button>
+										</form>
+									{/if}
+
+									{#if data.currentGuest?.isHost || (data.currentGuest && item.creatorGuestId === data.currentGuest.id)}
+										<form action="?/deletePotluckItem" method="POST" use:enhance>
+											<input type="hidden" name="itemId" value={item.id} />
+											<button type="submit" class="delete-icon-btn" title="Eintrag löschen">
+												<Trash2 size={14} />
+											</button>
+										</form>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			</Card>
+		{:else if activeTab === 'playlist' && data.event.playlistUrl}
+			<Card title={t('playlist.title')} subtitle={t('playlist.subtitle')}>
+				<div class="playlist-card-content">
+					{#if getYouTubePlaylistId(data.event.playlistUrl)}
+						<div class="playlist-embed-wrap">
+							<iframe
+								title={t('playlist.embedNotice')}
+								src="https://www.youtube-nocookie.com/embed/videoseries?list={getYouTubePlaylistId(
+									data.event.playlistUrl
+								)}"
+								class="playlist-iframe"
+								allow="autoplay; encrypted-media; picture-in-picture"
+								allowfullscreen
+							></iframe>
+						</div>
+					{/if}
+
+					<div class="playlist-actions">
+						<a
+							href={data.event.playlistUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="playlist-launch-btn"
+						>
+							<Music size={18} />
+							<span>{t('playlist.open')}</span>
+							<ExternalLink size={16} />
+						</a>
+					</div>
+				</div>
 			</Card>
 		{/if}
 	</main>
@@ -1362,5 +1513,105 @@
 	.sheet-desc {
 		font-size: var(--text-sm);
 		color: var(--text-secondary);
+	}
+
+	/* Potluck Styles */
+	.potluck-add-form {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-bottom: var(--space-4);
+	}
+
+	.potluck-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	.potluck-item-card {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--border-subtle);
+		background-color: var(--bg-surface);
+		gap: var(--space-3);
+	}
+
+	.potluck-item-card.claimed {
+		border-left: 4px solid var(--accent);
+	}
+
+	.potluck-item-info {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.potluck-item-title {
+		font-weight: 600;
+		font-size: var(--text-base);
+		color: var(--text-primary);
+	}
+
+	.potluck-claimant {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: var(--text-xs);
+		color: var(--text-secondary);
+	}
+
+	.potluck-item-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		flex-shrink: 0;
+	}
+
+	/* Playlist Styles */
+	.playlist-card-content {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+	}
+
+	.playlist-embed-wrap {
+		width: 100%;
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		aspect-ratio: 16 / 9;
+		max-height: 400px;
+		background: #000;
+	}
+
+	.playlist-iframe {
+		width: 100%;
+		height: 100%;
+		border: none;
+	}
+
+	.playlist-actions {
+		display: flex;
+		justify-content: center;
+	}
+
+	.playlist-launch-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-3) var(--space-5);
+		border-radius: var(--radius-pill);
+		background-color: var(--accent);
+		color: #ffffff;
+		font-weight: 600;
+		text-decoration: none;
+		transition: opacity var(--transition-fast);
+	}
+
+	.playlist-launch-btn:hover {
+		opacity: 0.9;
 	}
 </style>

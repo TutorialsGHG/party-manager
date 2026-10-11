@@ -85,5 +85,29 @@
 		"limits": "Speicherlimits",
 		"smtp": "E-Mail-Einstellungen",
 		"testEmail": "Test-E-Mail senden"
+	},
+	"potluck": {
+		"title": "Mitbringliste",
+		"subtitle": "Was wird noch gebraucht? Trage dich ein oder füge Wünsche hinzu.",
+		"addItem": "Eintrag hinzufügen",
+		"itemPlaceholder": "Z. B. Baguette, Kasten Bier, Eiswürfel...",
+		"claim": "Ich bringe das mit",
+		"unclaim": "Doch nicht mitbringen",
+		"claimedBy": "Wird mitgebracht von",
+		"empty": "Noch keine Einträge auf der Mitbringliste. Füge den ersten hinzu!",
+		"open": "Wird noch gebraucht"
+	},
+	"playlist": {
+		"title": "Party-Playlist",
+		"subtitle": "Höre schon jetzt in den Party-Soundtrack rein.",
+		"open": "In YouTube Music öffnen",
+		"embedNotice": "YouTube Music Playlist"
+	},
+	"partyMode": {
+		"title": "Party-Modus",
+		"start": "Party-Modus starten",
+		"emptyTitle": "Dein Bild jetzt hier – lad es hoch!",
+		"emptySubtitle": "Scanne den QR-Code mit deinem Smartphone und teile deine Party-Schnappschüsse live auf der Leinwand.",
+		"openPlaylist": "Playlist abspielen"
 	}
 }

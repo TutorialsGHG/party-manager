@@ -23,7 +23,10 @@
 		Vote,
 		Pin,
 		Send,
-		Plus
+		Plus,
+		Tv,
+		Music,
+		ExternalLink
 	} from '@lucide/svelte';
 	import GalleryGrid from '$lib/features/gallery/GalleryGrid.svelte';
 	import type { MediaItem } from '$lib/features/gallery/types';
@@ -32,6 +35,13 @@
 
 	let copied = $state(false);
 	let showDeleteDialog = $state(false);
+
+	let newPotluckTitle = $state('');
+	let playlistUrl = $state('');
+	$effect(() => {
+		playlistUrl = data.event.playlistUrl || '';
+	});
+	let potluckItems = $derived(data.potluckItems || []);
 
 	let themeTokens = $derived(deriveThemeTokens(data.event.accentColor));
 
@@ -188,6 +198,11 @@
 					<Calendar size={16} />
 					<span>.ics Kalender</span>
 				</Button>
+
+				<a href={`/events/${data.event.id}/live`} class="party-mode-launch-link">
+					<Tv size={16} />
+					<span>Party-Modus (Bar / Beamer)</span>
+				</a>
 			</div>
 		</div>
 	</Card>
@@ -497,6 +512,102 @@
 		</form>
 	</Card>
 
+	<!-- Potluck List Card -->
+	<Card
+		title="Mitbringliste ({potluckItems.length})"
+		subtitle="Behalte im Überblick, wer was mitbringt, und füge Wünsche hinzu."
+	>
+		<form
+			action="?/addPotluckItem"
+			method="POST"
+			use:enhance={() => {
+				return async ({ update }) => {
+					newPotluckTitle = '';
+					await update();
+				};
+			}}
+			class="host-inline-form"
+		>
+			<input
+				name="title"
+				bind:value={newPotluckTitle}
+				class="host-input"
+				placeholder="Z. B. Baguette, Kasten Bier, Eiswürfel..."
+				required
+			/>
+			<Button type="submit" variant="primary">
+				<Plus size={16} />
+				<span>Hinzufügen</span>
+			</Button>
+		</form>
+
+		{#if potluckItems.length === 0}
+			<p class="empty-text">Noch keine Einträge auf der Mitbringliste.</p>
+		{:else}
+			<div class="potluck-host-items">
+				{#each potluckItems as item (item.id)}
+					<div class="potluck-host-row">
+						<div class="potluck-host-info">
+							<strong>{item.title}</strong>
+							{#if item.claimedByGuestId}
+								<span class="claim-tag claimed">
+									<Check size={12} /> Mitgebracht von: {item.claimedByName || 'Gast'}
+								</span>
+							{:else}
+								<span class="claim-tag open">Noch offen</span>
+							{/if}
+						</div>
+						<div class="potluck-host-actions">
+							{#if item.claimedByGuestId}
+								<form action="?/unclaimPotluckItem" method="POST" use:enhance>
+									<input type="hidden" name="itemId" value={item.id} />
+									<Button type="submit" variant="secondary" size="sm">Freigeben</Button>
+								</form>
+							{/if}
+							<form action="?/deletePotluckItem" method="POST" use:enhance>
+								<input type="hidden" name="itemId" value={item.id} />
+								<button type="submit" class="host-delete-btn" title="Löschen">
+									<Trash2 size={14} />
+								</button>
+							</form>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</Card>
+
+	<!-- Party Playlist Card -->
+	<Card
+		title="Musik-Playlist"
+		subtitle="Hinterlege einen Link zu einer YouTube Music oder Spotify Playlist für Gäste und den Bar-PC."
+	>
+		<form action="?/updatePlaylistUrl" method="POST" use:enhance class="host-form">
+			<Input
+				label="Playlist-Link (z. B. YouTube Music)"
+				name="playlistUrl"
+				bind:value={playlistUrl}
+				placeholder="https://music.youtube.com/playlist?list=..."
+				hint="Erscheint als 'Playlist'-Reiter bei Gästen und als Schnellstart-Button im Party-Modus."
+			/>
+			<div class="host-form-actions">
+				<Button type="submit" variant="primary">Playlist-Link speichern</Button>
+				{#if data.event.playlistUrl}
+					<a
+						href={data.event.playlistUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="playlist-link-btn"
+					>
+						<Music size={14} />
+						<span>In YouTube Music testen</span>
+						<ExternalLink size={14} />
+					</a>
+				{/if}
+			</div>
+		</form>
+	</Card>
+
 	<!-- Danger Zone & Management -->
 	<Card title="Sicherheit & Verwaltung">
 		<div class="danger-actions">
@@ -738,24 +849,6 @@
 		overflow-wrap: anywhere;
 	}
 
-	.announcement-stream {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		margin-bottom: var(--space-4);
-	}
-
-	.announcement-card {
-		background-color: var(--accent-subtle);
-		border-radius: var(--radius-md);
-		padding: var(--space-3);
-	}
-
-	.announcement-card p {
-		margin: 0 0 var(--space-1);
-		font-size: var(--text-sm);
-	}
-
 	.host-form,
 	.host-items {
 		display: flex;
@@ -915,5 +1008,100 @@
 
 	.zip-download-button:hover {
 		border-color: var(--border-medium, var(--text-muted));
+	}
+
+	.party-mode-launch-link {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background-color: var(--accent);
+		color: #ffffff;
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		text-decoration: none;
+		transition: opacity var(--transition-fast);
+	}
+
+	.party-mode-launch-link:hover {
+		opacity: 0.9;
+	}
+
+	.host-inline-form {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin-bottom: var(--space-4);
+	}
+
+	.potluck-host-items {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.potluck-host-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-2) var(--space-3);
+		background: var(--bg-surface-elevated, var(--bg-surface));
+		border: 1px solid var(--border-subtle);
+		border-radius: var(--radius-md);
+		gap: var(--space-3);
+	}
+
+	.potluck-host-info {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.claim-tag {
+		font-size: var(--text-xs);
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	.claim-tag.claimed {
+		color: var(--accent);
+		font-weight: 500;
+	}
+
+	.claim-tag.open {
+		color: var(--text-secondary);
+	}
+
+	.potluck-host-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.host-delete-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--text-secondary);
+		padding: var(--space-1);
+		display: inline-flex;
+		align-items: center;
+		transition: color var(--transition-fast);
+	}
+
+	.host-delete-btn:hover {
+		color: var(--color-danger);
+	}
+
+	.playlist-link-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--accent);
+		text-decoration: none;
+		font-weight: 600;
 	}
 </style>

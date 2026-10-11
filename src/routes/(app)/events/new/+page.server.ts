@@ -29,6 +29,7 @@ export const actions: Actions = {
 			locationName,
 			locationAddress,
 			accentColor,
+			playlistUrl,
 			maxCompanions
 		} = parseResult.data;
 
@@ -40,6 +41,7 @@ export const actions: Actions = {
 			locationName,
 			locationAddress,
 			accentColor,
+			playlistUrl,
 			maxCompanions
 		});
 

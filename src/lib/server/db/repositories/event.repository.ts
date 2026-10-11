@@ -20,6 +20,7 @@ export interface EventData {
 	description?: string;
 	locationName?: string;
 	locationAddress?: string;
+	playlistUrl?: string;
 	maxCompanions: number;
 	createdAt: number;
 }
@@ -43,6 +44,7 @@ export function createEvent(
 		locationName?: string;
 		locationAddress?: string;
 		accentColor?: string;
+		playlistUrl?: string;
 		maxCompanions?: number;
 	}
 ): EventData {
@@ -67,13 +69,19 @@ export function createEvent(
 	const locAddrCipher = params.locationAddress
 		? encryptText(params.locationAddress, ek, `events:${id}:location_address`)
 		: null;
+	const playlistCipher =
+		params.playlistUrl && params.playlistUrl.trim()
+			? encryptText(params.playlistUrl.trim(), ek, `events:${id}:playlist_url`)
+			: null;
+	const inviteTokenCipher = encryptText(token, ek, `events:${id}:token`);
 
 	db.prepare(
 		`
     INSERT INTO events (
       id, token_hash, host_id, date_start, date_end, accent_color,
-      title_cipher, description_cipher, location_name_cipher, location_address_cipher, max_companions, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      title_cipher, description_cipher, location_name_cipher, location_address_cipher,
+      playlist_url_cipher, invite_token_cipher, max_companions, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
 	).run(
 		id,
@@ -86,6 +94,8 @@ export function createEvent(
 		descCipher,
 		locNameCipher,
 		locAddrCipher,
+		playlistCipher,
+		inviteTokenCipher,
 		Math.max(0, Math.min(20, params.maxCompanions || 0)),
 		now
 	);
@@ -102,6 +112,7 @@ export function createEvent(
 		description: params.description,
 		locationName: params.locationName,
 		locationAddress: params.locationAddress,
+		playlistUrl: params.playlistUrl ? params.playlistUrl.trim() : undefined,
 		maxCompanions: Math.max(0, Math.min(20, params.maxCompanions || 0)),
 		createdAt: now
 	};
@@ -121,9 +132,16 @@ function hydrateEventRow(row: any): EventData {
 	const locationAddress = row.location_address_cipher
 		? decryptText(row.location_address_cipher, ek, `events:${id}:location_address`)
 		: '';
+	const playlistUrl = row.playlist_url_cipher
+		? decryptText(row.playlist_url_cipher, ek, `events:${id}:playlist_url`)
+		: undefined;
+	const token = row.invite_token_cipher
+		? decryptText(row.invite_token_cipher, ek, `events:${id}:token`)
+		: undefined;
 
 	return {
 		id,
+		token,
 		tokenHash: row.token_hash,
 		hostId: row.host_id,
 		dateStart: row.date_start,
@@ -133,6 +151,7 @@ function hydrateEventRow(row: any): EventData {
 		description,
 		locationName,
 		locationAddress,
+		playlistUrl,
 		maxCompanions: row.max_companions || 0,
 		createdAt: row.created_at
 	};
@@ -170,11 +189,32 @@ export function regenerateEventToken(eventId: string, hostId: string): string | 
 	const db = getDb();
 	const token = generateInviteToken();
 	const tokenHash = hashToken(token);
+	const ek = getEventKey(eventId);
+	const inviteTokenCipher = encryptText(token, ek, `events:${eventId}:token`);
 
 	const res = db
-		.prepare('UPDATE events SET token_hash = ? WHERE id = ? AND host_id = ?')
-		.run(tokenHash, eventId, hostId);
+		.prepare(
+			'UPDATE events SET token_hash = ?, invite_token_cipher = ? WHERE id = ? AND host_id = ?'
+		)
+		.run(tokenHash, inviteTokenCipher, eventId, hostId);
 	return res.changes > 0 ? token : null;
+}
+
+export function updatePlaylistUrl(
+	eventId: string,
+	hostId: string,
+	playlistUrl: string | null
+): boolean {
+	const db = getDb();
+	const ek = getEventKey(eventId);
+	const cipher =
+		playlistUrl && playlistUrl.trim()
+			? encryptText(playlistUrl.trim(), ek, `events:${eventId}:playlist_url`)
+			: null;
+	const res = db
+		.prepare('UPDATE events SET playlist_url_cipher = ? WHERE id = ? AND host_id = ?')
+		.run(cipher, eventId, hostId);
+	return res.changes > 0;
 }
 
 export function updateMaxCompanions(

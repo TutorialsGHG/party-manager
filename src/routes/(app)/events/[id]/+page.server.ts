@@ -4,7 +4,8 @@ import {
 	findEventById,
 	regenerateEventToken,
 	deleteEvent,
-	updateMaxCompanions
+	updateMaxCompanions,
+	updatePlaylistUrl
 } from '$lib/server/db/repositories/event.repository';
 import { getRsvpSummary } from '$lib/server/db/repositories/rsvp.repository';
 import { MediaRepository } from '$lib/server/db/repositories/media.repository';
@@ -25,6 +26,12 @@ import {
 	listAnnouncements,
 	deleteAnnouncement
 } from '$lib/server/db/repositories/announcement.repository';
+import {
+	listPotluckItems,
+	createPotluckItem,
+	deletePotluckItem,
+	unclaimPotluckItem
+} from '$lib/server/db/repositories/potluck.repository';
 import { sseHub } from '$lib/server/realtime/sse-hub';
 import { config } from '$lib/server/config/env';
 import { mediaQueue } from '$lib/server/media/queue';
@@ -45,6 +52,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	// by the rsvps table and therefore structurally blind to them.
 	const guestOverview = listGuestOverview(event.id);
 	const announcements = listAnnouncements(event.id);
+	const potluckItems = listPotluckItems(event.id);
 	const baseUrl = config.baseUrl;
 
 	// The invite token hash is an internal lookup key; it must not be serialized
@@ -56,6 +64,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		rsvp,
 		guestOverview,
 		announcements,
+		potluckItems,
 		mediaItems,
 		wallPosts,
 		polls,
@@ -207,5 +216,60 @@ export const actions: Actions = {
 		const success = toggleClosePoll(pollId, event.id);
 		if (success) sseHub.broadcast(event.id, 'poll:update', { pollId });
 		return { success };
+	},
+
+	updatePlaylistUrl: async ({ request, params, locals }) => {
+		const user = requireUser(locals);
+		const event = findEventById(params.id!, user.id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const formData = await request.formData();
+		const playlistUrl = String(formData.get('playlistUrl') || '').trim();
+		const success = updatePlaylistUrl(event.id, user.id, playlistUrl || null);
+		return { success };
+	},
+
+	addPotluckItem: async ({ request, params, locals }) => {
+		const user = requireUser(locals);
+		const event = findEventById(params.id!, user.id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const formData = await request.formData();
+		const title = String(formData.get('title') || '').trim();
+		if (!title || title.length > 100) {
+			return fail(400, { error: 'Bitte gib einen Namen ein (max. 100 Zeichen).' });
+		}
+
+		const item = createPotluckItem(event.id, title, null);
+		sseHub.broadcast(event.id, 'potluck:new', item);
+		return { success: true };
+	},
+
+	deletePotluckItem: async ({ request, params, locals }) => {
+		const user = requireUser(locals);
+		const event = findEventById(params.id!, user.id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const formData = await request.formData();
+		const itemId = String(formData.get('itemId') || '');
+		const success = deletePotluckItem(event.id, itemId, null, true);
+		if (success) {
+			sseHub.broadcast(event.id, 'potluck:delete', { id: itemId });
+		}
+		return { success };
+	},
+
+	unclaimPotluckItem: async ({ request, params, locals }) => {
+		const user = requireUser(locals);
+		const event = findEventById(params.id!, user.id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const formData = await request.formData();
+		const itemId = String(formData.get('itemId') || '');
+		const item = unclaimPotluckItem(event.id, itemId, null, true);
+		if (item) {
+			sseHub.broadcast(event.id, 'potluck:update', item);
+		}
+		return { success: !!item };
 	}
 };
