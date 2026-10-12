@@ -153,6 +153,14 @@
 						<span>Gemeinsame Foto- und Video-Galerie für Gäste.</span>
 					</div>
 				</label>
+
+				<label class="feature-item">
+					<input type="checkbox" name="showPlaylist" checked />
+					<div class="feature-meta">
+						<strong>{t('events.showPlaylist')}</strong>
+						<span>Musik-Playlist-Reiter für Gäste.</span>
+					</div>
+				</label>
 			</div>
 		</Card>
 

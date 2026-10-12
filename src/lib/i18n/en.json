@@ -50,7 +50,8 @@
 		"showWall": "Show Wall",
 		"showPolls": "Show Polls",
 		"showPotluck": "Show Potluck list",
-		"showGallery": "Show Photo & Video Gallery"
+		"showGallery": "Show Photo & Video Gallery",
+		"showPlaylist": "Show music playlist"
 	},
 	"rsvp": {
 		"title": "Your RSVP",

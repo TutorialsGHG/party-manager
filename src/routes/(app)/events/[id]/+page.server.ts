@@ -240,12 +240,14 @@ export const actions: Actions = {
 		const showPolls = formData.has('showPolls');
 		const showPotluck = formData.has('showPotluck');
 		const showGallery = formData.has('showGallery');
+		const showPlaylist = formData.has('showPlaylist');
 
 		const success = updateEventFeatures(event.id, user.id, {
 			showWall,
 			showPolls,
 			showPotluck,
-			showGallery
+			showGallery,
+			showPlaylist
 		});
 		return { success };
 	},

@@ -12,9 +12,9 @@ Alle relevanten Änderungen an diesem Projekt werden in dieser Datei nach den Pr
 
 ### Added
 
-- **Gäste-Funktionen & Reiter (Feature Flags):** Gastgeber können gezielt einzelne Reiter für Gäste deaktivieren (`show_wall`, `show_polls`, `show_potluck`, `show_gallery`, Migration 010). Deaktivierte Reiter werden in der Navigation und im Seiteninhalt ausgeblendet; Server-Aktionen und Datei-Uploads für deaktivierte Funktionen werden serverseitig mit 403 abgewiesen.
+- **Gäste-Funktionen & Reiter (Feature Flags):** Gastgeber können gezielt einzelne Reiter für Gäste deaktivieren (`show_wall`, `show_polls`, `show_potluck`, `show_gallery`, `show_playlist`, Migrationen 010 & 011). Deaktivierte Reiter werden in der Navigation und im Seiteninhalt ausgeblendet; Server-Aktionen und Datei-Uploads für deaktivierte Funktionen werden serverseitig mit 403 abgewiesen.
 - **Scroll-Indikatoren für Top-Navigationsleiste:** Visuelle Indikatoren (Fade-Verlauf an den Kanten und Scroll-Buttons links/rechts) zeigen Gästen und Hosts intuitiv an, wenn in der oberen Leiste weitere Reiter erreichbar sind.
-- **Playlist UX & Spotify-Unterstützung:** Spotify-Playlists (`open.spotify.com/playlist/...`) werden mit nativer, durchscrollbarer Tracklist eingebunden. Für YouTube-Playlists wird ein Hinweis zum Einblenden der Song-Liste via Player-Menü (☰) angezeigt.
+- **Playlist UX & Spotify-Unterstützung:** Spotify-Playlists (`open.spotify.com/playlist/...`) werden mit nativer, durchscrollbarer Tracklist eingebunden. Für YouTube-Playlists wird ein Hinweis zum Einblenden der Song-Liste via Player-Menü (☰) angezeigt. Der Playlist-Reiter kann vom Host separat deaktiviert werden.
 
 ### Fixed
 

@@ -40,11 +40,13 @@
 	let showPolls = $state(true);
 	let showPotluck = $state(true);
 	let showGallery = $state(true);
+	let showPlaylist = $state(true);
 	$effect(() => {
 		showWall = data.event.showWall !== false;
 		showPolls = data.event.showPolls !== false;
 		showPotluck = data.event.showPotluck !== false;
 		showGallery = data.event.showGallery !== false;
+		showPlaylist = data.event.showPlaylist !== false;
 	});
 
 	let newPotluckTitle = $state('');
@@ -251,6 +253,14 @@
 					<div class="toggle-text">
 						<strong>{t('events.showGallery')}</strong>
 						<span>Gemeinsame Foto- und Video-Galerie für Gäste aktivieren.</span>
+					</div>
+				</label>
+
+				<label class="feature-toggle-item">
+					<input type="checkbox" name="showPlaylist" bind:checked={showPlaylist} />
+					<div class="toggle-text">
+						<strong>{t('events.showPlaylist')}</strong>
+						<span>Playlist-Reiter für Gäste ein- oder ausblenden.</span>
 					</div>
 				</label>
 			</div>

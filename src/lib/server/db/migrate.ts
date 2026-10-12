@@ -328,6 +328,14 @@ ALTER TABLE events ADD COLUMN show_polls INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE events ADD COLUMN show_potluck INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE events ADD COLUMN show_gallery INTEGER NOT NULL DEFAULT 1;
 `
+	],
+	[
+		'011_event_show_playlist.sql',
+		`
+-- Feature toggle for playlist tab.
+-- Allows hosts to disable the playlist tab on the guest invitation page.
+ALTER TABLE events ADD COLUMN show_playlist INTEGER NOT NULL DEFAULT 1;
+`
 	]
 ];
 

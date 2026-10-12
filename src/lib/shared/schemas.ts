@@ -51,6 +51,12 @@ export const eventSchema = z.object({
 			(v) => v === undefined || v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
 			z.boolean()
 		)
+		.default(true),
+	showPlaylist: z
+		.preprocess(
+			(v) => v === undefined || v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
 		.default(true)
 });
 
@@ -74,6 +80,12 @@ export const eventFeaturesSchema = z.object({
 		)
 		.default(false),
 	showGallery: z
+		.preprocess(
+			(v) => v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
+			z.boolean()
+		)
+		.default(false),
+	showPlaylist: z
 		.preprocess(
 			(v) => v === 'on' || v === 'true' || v === true || v === 1 || v === '1',
 			z.boolean()

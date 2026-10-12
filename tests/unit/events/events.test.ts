@@ -125,6 +125,7 @@ describe('Events, Guests & RSVP Modules', () => {
 		expect(event.showPolls).toBe(true);
 		expect(event.showPotluck).toBe(true);
 		expect(event.showGallery).toBe(true);
+		expect(event.showPlaylist).toBe(true);
 
 		// Guest token view reflects defaults
 		let guestView = findEventByToken(event.token!);
@@ -132,13 +133,15 @@ describe('Events, Guests & RSVP Modules', () => {
 		expect(guestView?.showPolls).toBe(true);
 		expect(guestView?.showPotluck).toBe(true);
 		expect(guestView?.showGallery).toBe(true);
+		expect(guestView?.showPlaylist).toBe(true);
 
-		// Host updates feature flags: disable polls & potluck
+		// Host updates feature flags: disable polls, potluck, and playlist
 		const updated = updateEventFeatures(event.id, hostId, {
 			showWall: true,
 			showPolls: false,
 			showPotluck: false,
-			showGallery: true
+			showGallery: true,
+			showPlaylist: false
 		});
 		expect(updated).toBe(true);
 
@@ -148,6 +151,7 @@ describe('Events, Guests & RSVP Modules', () => {
 		expect(hostView?.showPolls).toBe(false);
 		expect(hostView?.showPotluck).toBe(false);
 		expect(hostView?.showGallery).toBe(true);
+		expect(hostView?.showPlaylist).toBe(false);
 
 		// Check updated guest view
 		guestView = findEventByToken(event.token!);
@@ -155,6 +159,7 @@ describe('Events, Guests & RSVP Modules', () => {
 		expect(guestView?.showPolls).toBe(false);
 		expect(guestView?.showPotluck).toBe(false);
 		expect(guestView?.showGallery).toBe(true);
+		expect(guestView?.showPlaylist).toBe(false);
 	});
 
 	it('should regenerate token and invalidate the old link', () => {

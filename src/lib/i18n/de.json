@@ -50,7 +50,8 @@
 		"showWall": "Pinnwand anzeigen",
 		"showPolls": "Umfragen anzeigen",
 		"showPotluck": "Mitbringliste anzeigen",
-		"showGallery": "Foto- & Video-Galerie anzeigen"
+		"showGallery": "Foto- & Video-Galerie anzeigen",
+		"showPlaylist": "Musik-Playlist anzeigen"
 	},
 	"rsvp": {
 		"title": "Deine Rückmeldung",

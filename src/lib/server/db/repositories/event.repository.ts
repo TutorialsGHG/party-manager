@@ -26,6 +26,7 @@ export interface EventData {
 	showPolls?: boolean;
 	showPotluck?: boolean;
 	showGallery?: boolean;
+	showPlaylist?: boolean;
 	createdAt: number;
 }
 
@@ -54,6 +55,7 @@ export function createEvent(
 		showPolls?: boolean;
 		showPotluck?: boolean;
 		showGallery?: boolean;
+		showPlaylist?: boolean;
 	}
 ): EventData {
 	const db = getDb();
@@ -87,6 +89,7 @@ export function createEvent(
 	const showPolls = params.showPolls !== false;
 	const showPotluck = params.showPotluck !== false;
 	const showGallery = params.showGallery !== false;
+	const showPlaylist = params.showPlaylist !== false;
 
 	db.prepare(
 		`
@@ -94,8 +97,8 @@ export function createEvent(
       id, token_hash, host_id, date_start, date_end, accent_color,
       title_cipher, description_cipher, location_name_cipher, location_address_cipher,
       playlist_url_cipher, invite_token_cipher, max_companions, created_at,
-      show_wall, show_polls, show_potluck, show_gallery
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      show_wall, show_polls, show_potluck, show_gallery, show_playlist
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
 	).run(
 		id,
@@ -115,7 +118,8 @@ export function createEvent(
 		showWall ? 1 : 0,
 		showPolls ? 1 : 0,
 		showPotluck ? 1 : 0,
-		showGallery ? 1 : 0
+		showGallery ? 1 : 0,
+		showPlaylist ? 1 : 0
 	);
 
 	return {
@@ -136,6 +140,7 @@ export function createEvent(
 		showPolls,
 		showPotluck,
 		showGallery,
+		showPlaylist,
 		createdAt: now
 	};
 }
@@ -185,6 +190,10 @@ function hydrateEventRow(row: any): EventData {
 		showGallery:
 			row.show_gallery !== undefined && row.show_gallery !== null
 				? Boolean(row.show_gallery)
+				: true,
+		showPlaylist:
+			row.show_playlist !== undefined && row.show_playlist !== null
+				? Boolean(row.show_playlist)
 				: true,
 		createdAt: row.created_at
 	};
@@ -269,17 +278,19 @@ export function updateEventFeatures(
 		showPolls: boolean;
 		showPotluck: boolean;
 		showGallery: boolean;
+		showPlaylist: boolean;
 	}
 ): boolean {
 	const result = getDb()
 		.prepare(
-			'UPDATE events SET show_wall = ?, show_polls = ?, show_potluck = ?, show_gallery = ? WHERE id = ? AND host_id = ?'
+			'UPDATE events SET show_wall = ?, show_polls = ?, show_potluck = ?, show_gallery = ?, show_playlist = ? WHERE id = ? AND host_id = ?'
 		)
 		.run(
 			features.showWall ? 1 : 0,
 			features.showPolls ? 1 : 0,
 			features.showPotluck ? 1 : 0,
 			features.showGallery ? 1 : 0,
+			features.showPlaylist ? 1 : 0,
 			eventId,
 			hostId
 		);

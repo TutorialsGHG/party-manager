@@ -34,7 +34,8 @@ export const actions: Actions = {
 			showWall,
 			showPolls,
 			showPotluck,
-			showGallery
+			showGallery,
+			showPlaylist
 		} = parseResult.data;
 
 		const event = createEvent(requireUser(locals).id, {
@@ -50,7 +51,8 @@ export const actions: Actions = {
 			showWall,
 			showPolls,
 			showPotluck,
-			showGallery
+			showGallery,
+			showPlaylist
 		});
 
 		throw redirect(303, `/events/${event.id}`);

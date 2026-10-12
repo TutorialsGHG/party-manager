@@ -74,7 +74,8 @@
 		if (activeTab === 'polls' && !data.event.showPolls) activeTab = 'info';
 		if (activeTab === 'potluck' && !data.event.showPotluck) activeTab = 'info';
 		if (activeTab === 'gallery' && !data.event.showGallery) activeTab = 'info';
-		if (activeTab === 'playlist' && !data.event.playlistUrl) activeTab = 'info';
+		if (activeTab === 'playlist' && (!data.event.playlistUrl || !data.event.showPlaylist))
+			activeTab = 'info';
 	});
 
 	$effect(() => {
@@ -456,7 +457,7 @@
 				</button>
 			{/if}
 
-			{#if data.event.playlistUrl}
+			{#if data.event.playlistUrl && data.event.showPlaylist}
 				<button
 					type="button"
 					class="tab-btn {activeTab === 'playlist' ? 'active' : ''}"
@@ -1037,7 +1038,7 @@
 					{/if}
 				</div>
 			</Card>
-		{:else if activeTab === 'playlist' && data.event.playlistUrl}
+		{:else if activeTab === 'playlist' && data.event.playlistUrl && data.event.showPlaylist}
 			<Card title={t('playlist.title')} subtitle={t('playlist.subtitle')}>
 				<div class="playlist-card-content">
 					{#if playlistEmbed}
