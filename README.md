@@ -1,164 +1,160 @@
-# Einladung 🎈 (Party Manager)
+# Einladung 🎈
 
-> **Self-hosted, uncompromisingly private invitation web app (PWA) for parties and birthdays.**
+> **Self-hosted, privacy-first party invitation app (PWA) — deploy in 60 seconds with a single Docker command.**
 
-**Einladung** ("Invitation") is a modern, privacy-first web application designed to help hosts plan and manage events without relying on commercial platforms or third-party trackers. Guests open a secret invitation link directly in their browser — **with zero account registration or app store installation required** — view event details, RSVP with companions, coordinate potluck items, vote in polls, write on the wall, listen to the party playlist, and upload photos & videos in full original resolution.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Docker Pulls](https://img.shields.io/docker/pulls/tutorialsghg/party-manager)](https://hub.docker.com/r/tutorialsghg/party-manager)
+[![GitHub release](https://img.shields.io/github/v/release/TutorialsGHG/party-manager)](https://github.com/TutorialsGHG/party-manager/releases)
 
----
-
-## 🌟 Highlights & Features
-
-- 🔒 **100% Privacy & Zero External Requests:** No Google Fonts, external CDNs, third-party analytics, or tracking tiles. All assets, scripts, and fonts are served strictly locally from a single container.
-- 🛡️ **Envelope Encryption & Crypto-Shredding:**
-  - RSA-4096 Master Key Pair + per-event 256-bit AES Event Keys.
-  - Chunked AES-256-GCM streaming encryption (1 MiB chunks) for media storage.
-  - Sensitive database columns (titles, notes, allergies, guest names) authenticated with deterministic AAD.
-  - Deleting an event shreds the event key immediately, rendering encrypted database entries and media files irreversibly unreadable.
-- 🥗 **Potluck & Wishlist ("Mitbringliste"):**
-  - Guests and host can add items needed for the party (e.g. _"Baguette"_, _"Ice cubes"_, _"Vegetarian dip"_).
-  - 1-click claiming and unclaiming (_"I'll bring this"_).
-  - Synchronized across all connected devices in real time via Server-Sent Events (SSE).
-- 📽️ **Live Party Mode / Beamer Slideshow (`/events/:id/live`):**
-  - High-contrast, dark-mode fullscreen view tailored for the bar PC, TV, or projector.
-  - Automatically rotates through uploaded party photos in real time.
-  - **Dynamic Empty-State:** When no photos exist yet, it displays:
-    > **"Your photo right here – upload it now!"**
-    > همراه with a large, crisp SVG QR code that guests at the bar can scan to take and upload the very first party snapshots.
-  - Includes a floating mini-QR badge during the slideshow and a quick-launch button for the party soundtrack.
-- 🎵 **Music Playlist Integration:**
-  - Host can configure a YouTube Music or Spotify playlist URL.
-  - Dedicated **"Playlist"** tab for guests with an embedded player (`youtube-nocookie.com`) and direct app launch button.
-- 📣 **Targeted Host Announcements:**
-  - Hosts can broadcast updates specifically to confirmed guests and companions (_"Please bring warm clothes for the garden"_).
-  - Server-side audience filtering on both initial load and live SSE streams ensures declined guests never receive private announcements.
-- 📊 **Host Guest & Dietary Overview:**
-  - Comprehensive dashboard showing all guests who opened the link, their RSVP status, accompanied guests, dietary requirements/allergies, and activity counters.
-- 💬 **Live Wall & Interactive Polls:**
-  - Real-time guestbook with host pin/unpin moderation and instant deletion.
-  - Single- and multiple-choice polls with live voting progress bars and optional guest-added choices.
-- 📸 **Encrypted Media Pipeline:**
-  - Resumable file uploads via the **tus 1.0.0 protocol**.
-  - Background processing with `sharp` (automatic EXIF/GPS stripping, WebP thumbnails, BlurHash generation) and `ffmpeg` (H.264/AAC web transcoding).
-  - HTTP Range Requests with chunked on-the-fly decryption for smooth video playback and scrubbing.
-  - 1-click bulk ZIP album download for the host.
-- 📱 **Apple-Inspired Design System:**
-  - Clean typography (SF Pro / Inter), 8-pt grid, fluid bottom sheets, and responsive touch gestures.
-  - Lightbox with native swipe gestures and pinch-to-zoom.
-  - Automated WCAG AA contrast ratio enforcement for customized accent colors.
+**Einladung** ("Invitation") is a modern, self-hosted web app for organizing parties and birthdays without touching any commercial platform or third-party tracker. Guests open a secret link in their browser — **no account, no app install required** — and can RSVP, bring items, vote in polls, post on the wall, and upload party photos that appear live on your beamer.
 
 ---
 
-## 🚀 Quick Start with Docker (Recommended)
+## ✨ Features at a Glance
 
-The entire application runs inside a single self-contained Docker container without requiring external databases or third-party background services.
+| Feature | Details |
+|---|---|
+| 🔒 **Zero external requests** | No Google Fonts, CDNs, analytics, or tracking. Everything served locally. |
+| 🛡️ **Envelope encryption** | RSA-4096 + AES-256-GCM. Deleting an event crypto-shreds all its data. |
+| 📷 **Live party slideshow** | Full-screen beamer mode with QR code for guests to upload photos in real time. |
+| 📣 **Host announcements** | Push updates only to confirmed guests (declined guests never see them). |
+| 🥗 **Potluck / bring list** | Guests claim items with one tap; updates sync live across all devices. |
+| 💬 **Live wall & polls** | Real-time guestbook + single/multi-choice polls with live progress bars. |
+| 🎵 **Playlist integration** | Embed YouTube Music or Spotify; quick-launch button for the party PC. |
+| 📸 **Encrypted media pipeline** | Resumable tus uploads · sharp thumbnails · ffmpeg video transcoding · BlurHash. |
+| 📱 **Apple-inspired PWA** | SF Pro/Inter · 8-pt grid · swipe gestures · WCAG AA contrast. |
 
-### 1. Run with Docker Compose
+---
+
+## 🚀 Quick Start — Pull & Run (No Build Required)
+
+The easiest way: **pull the pre-built image directly from Docker Hub.**
 
 ```bash
+# 1. Download the compose file
+curl -O https://raw.githubusercontent.com/TutorialsGHG/party-manager/main/docker-compose.yml
+
+# 2. Create your .env (edit BASE_URL and the two secrets)
+cp .env.example .env   # or create it manually (see below)
+
+# 3. Start
 docker compose up -d
 ```
 
-Open `http://localhost:3000` in your browser. The first user to register automatically becomes the **Administrator**.
+> Open **http://localhost:3000** — the first account you create becomes the Administrator.
 
-For production deployments, copy `.env.example` to `.env`:
+The `docker-compose.yml` already points to `tutorialsghg/party-manager:latest` on Docker Hub, so Docker pulls the image automatically without any local build step.
 
-```bash
-cp .env.example .env
+### Minimal `.env` for production
+
+```env
+# The public URL guests will use (must be HTTPS in production)
+BASE_URL=https://party.example.com
+
+# Protects the encrypted master key — use a long random string
+ENCRYPTION_PASSPHRASE=replace-with-a-long-random-secret
+
+# Optional but recommended — keeps PoW challenges valid across restarts
+# Generate with: openssl rand -hex 32
+POW_SECRET=
 ```
 
-Set `BASE_URL` and `ORIGIN` to your public HTTPS domain (e.g. `https://party.example.com`), and choose a secure `ENCRYPTION_PASSPHRASE` and `POW_SECRET`.
+---
 
-### 2. Volume Directory Structure
+## 🐳 Docker Compose Reference
 
-- `/data`: SQLite database (`app.db`) and encrypted media blobs (`blobs/`).
-- `/config`: RSA Master Key pair and wrapped event keys (`keys/`).
+```yaml
+services:
+  app:
+    image: tutorialsghg/party-manager:latest   # ← pre-built, no build needed
+    container_name: einladung
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - ENCRYPTION_PASSPHRASE=${ENCRYPTION_PASSPHRASE:-}
+      - POW_SECRET=${POW_SECRET:-}
+    volumes:
+      - party_data:/data      # SQLite DB + encrypted blobs
+      - party_config:/config  # RSA master key + event keys
+
+volumes:
+  party_data:
+  party_config:
+```
 
 > [!IMPORTANT]
-> **Backup Strategy:** Always back up `/data` and `/config` together (see [`docs/BACKUP.md`](docs/BACKUP.md)). Without the keys in `/config`, the database and media files in `/data` cannot be decrypted.
+> **Always back up `/data` and `/config` together.** The keys in `/config` are required to decrypt the database and media. Without them, data cannot be recovered. See [`docs/BACKUP.md`](docs/BACKUP.md).
+
+---
+
+## ⚙️ Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3000` | HTTP server port |
+| `BASE_URL` | `http://localhost:3000` | Public URL for invite links and CSRF checks |
+| `ORIGIN` | *(= BASE_URL)* | Allowed origin for SvelteKit's CSRF check |
+| `ADDRESS_HEADER` | *(none)* | Set to `x-forwarded-for` behind a reverse proxy |
+| `ENCRYPTION_PASSPHRASE` | *(empty)* | Passphrase for the RSA master private key |
+| `POW_SECRET` | *(random)* | HMAC secret for proof-of-work registration challenges |
+| `DATABASE_PATH` | `data/app.db` | SQLite database file path |
+| `BLOB_STORAGE_PATH` | `data/blobs` | Encrypted blob storage path |
+| `MASTER_KEY_DIR` | `config/keys` | RSA master key + event keystore directory |
+
+---
+
+## 🌐 Reverse Proxy
+
+Works with **Nginx Proxy Manager**, **Caddy**, **Traefik**, and **Cloudflare Tunnel**. See [`docs/REVERSE_PROXY.md`](docs/REVERSE_PROXY.md) for step-by-step guides.
+
+> [!TIP]
+> **Disable proxy buffering for SSE** on `/api/events/` (`proxy_buffering off;` in Nginx) so real-time photo updates, wall posts, and potluck claims arrive instantly.
 
 ---
 
 ## 🛠️ Local Development
 
-### Prerequisites
-
-- Node.js 22 LTS
-- pnpm 10+
-- `ffmpeg` (optional, for local video transcoding)
-
-### Setup & Development Server
-
 ```bash
-# Install dependencies
+# Prerequisites: Node.js 22 LTS, pnpm 10+, ffmpeg (optional for video)
+
 pnpm install
-
-# Start local dev server
-pnpm dev
+pnpm dev          # dev server at http://localhost:5173
+pnpm check        # TypeScript type check
+pnpm test:unit    # Vitest unit tests
+pnpm test:ci      # Full CI run (lint, check, tests, boundary checks)
+pnpm build        # Production bundle
 ```
 
-### Verification & Test Suite
+### Build your own Docker image
 
 ```bash
-# SvelteKit TypeScript Typecheck
-pnpm check
-
-# Unit tests with Vitest (150+ tests)
-pnpm test:unit
-
-# Full CI run (docs, i18n parity, boundaries, no-external, lint, check, tests)
-pnpm test:ci
-
-# Build production bundle
-pnpm build
+docker build -f docker/Dockerfile -t einladung:local .
+docker compose up -d   # uses locally built image if tag matches
 ```
-
----
-
-## ⚙️ Configuration & Environment Variables
-
-| Variable                | Default                 | Description                                                                    |
-| ----------------------- | ----------------------- | ------------------------------------------------------------------------------ |
-| `PORT`                  | `3000`                  | HTTP web server port                                                           |
-| `BASE_URL`              | `http://localhost:3000` | Public base URL used for invitation links and emails                           |
-| `ORIGIN`                | Value of `BASE_URL`     | Allowed origin for CSRF and same-origin validation                             |
-| `ADDRESS_HEADER`        | _(none)_                | Set to `x-forwarded-for` when running behind a reverse proxy                   |
-| `ENCRYPTION_PASSPHRASE` | _(empty)_               | Passphrase used to encrypt the private RSA master key                          |
-| `POW_SECRET`            | _(random)_              | HMAC secret to stabilize proof-of-work registration challenges across restarts |
-| `DATABASE_PATH`         | `data/app.db`           | Path to the SQLite database file                                               |
-| `BLOB_STORAGE_PATH`     | `data/blobs`            | Path to encrypted blob storage                                                 |
-| `MASTER_KEY_DIR`        | `config/keys`           | Path to master key and event keystore                                          |
-
----
-
-## 🌐 Running Behind a Reverse Proxy
-
-For deployment behind **Nginx Proxy Manager**, **Caddy**, **Traefik**, or **Cloudflare Tunnel**, check [`docs/REVERSE_PROXY.md`](docs/REVERSE_PROXY.md).
-
-> [!TIP]
-> **Disable Proxy Buffering for SSE:** Ensure your reverse proxy disables buffering on `/api/events/` (`proxy_buffering off;`) so real-time wall posts, potluck claims, and photo updates are delivered instantaneously to clients.
 
 ---
 
 ## 📖 Documentation
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) – Architecture overview & boundary enforcement
-- [`docs/SECURITY.md`](docs/SECURITY.md) – Cryptographic design, threat model, and crypto-shredding
-- [`docs/BACKUP.md`](docs/BACKUP.md) – 3-2-1 backup strategy and cold-restart recovery procedures
-- [`docs/REVERSE_PROXY.md`](docs/REVERSE_PROXY.md) – Step-by-step reverse proxy guides
-- [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) – Design tokens, gestures, and accessibility standards
-- [`docs/features/`](docs/features/) – Detailed specification cards for all application modules
+| Doc | Contents |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layer overview & boundary enforcement |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Cryptographic design, threat model, crypto-shredding |
+| [`docs/BACKUP.md`](docs/BACKUP.md) | 3-2-1 backup strategy & cold-restart recovery |
+| [`docs/REVERSE_PROXY.md`](docs/REVERSE_PROXY.md) | Nginx, Caddy, Traefik, Cloudflare Tunnel guides |
+| [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) | Design tokens, gestures, accessibility |
+| [`docs/features/`](docs/features/) | Per-module feature specification cards |
 
 ---
 
 ## 🤖 AI Development Disclosure
 
-This repository was designed, developed, and tested in collaboration with **Advanced Agentic AI Assistants** (DeepMind / Antigravity).
-
-- **Implementation:** Code generation, Svelte 5 component architecture, cryptographic layer wiring, and regression tests were developed with AI pair programming.
-- **Verification:** Every commit, security patch, and feature addition has been verified against mechanical quality gates, including strict boundary checkers, offline zero-external validators, automated test roundtrips, and type checking (`pnpm test:ci`).
+This project was designed, developed, and tested in collaboration with **Advanced Agentic AI Assistants** (Google DeepMind / Antigravity). All commits pass mechanical quality gates including boundary checkers, offline zero-external validators, automated test roundtrips, and type checking (`pnpm test:ci`).
 
 ---
 
 ## 📄 License
 
-[MIT](LICENSE). Free for personal and commercial self-hosted use.
+[MIT](LICENSE) — free for personal and commercial self-hosted use.
