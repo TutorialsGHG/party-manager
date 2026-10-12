@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const mediaItems = MediaRepository.listByEvent(event.id).filter((m) => m.status === 'ready');
 	const inviteToken = event.token || '';
 	const inviteUrl = inviteToken ? `${config.baseUrl}/e/${inviteToken}` : '';
-	const qrSvg = inviteUrl ? await generateQrSvg(inviteUrl, '#ffffff') : '';
+	const qrSvg = inviteUrl ? await generateQrSvg(inviteUrl, '#000000') : '';
 
 	const { tokenHash: _tokenHash, ...safeEvent } = event;
 
