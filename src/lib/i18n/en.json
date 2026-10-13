@@ -64,6 +64,16 @@
 		"submit": "Save RSVP",
 		"attendingSummary": "people attending"
 	},
+	"guests": {
+		"title": "Guests",
+		"subtitle": "Everyone who opened the invitation — even without an RSVP.",
+		"empty": "Nobody has opened the invitation yet.",
+		"remove": "Remove guest",
+		"removeConfirmTitle": "Really remove guest?",
+		"removeConfirmText": "Do you really want to remove {name} from the guest list? Their RSVP, wall posts, and all associated data will be deleted.",
+		"removeConfirmAction": "Remove",
+		"removeHostForbidden": "The host cannot be removed."
+	},
 	"polls": {
 		"title": "Polls",
 		"vote": "Vote",

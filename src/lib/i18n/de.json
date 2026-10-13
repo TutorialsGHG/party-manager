@@ -64,6 +64,16 @@
 		"submit": "Rückmeldung speichern",
 		"attendingSummary": "Personen haben zugesagt"
 	},
+	"guests": {
+		"title": "Teilnehmende",
+		"subtitle": "Alle, die die Einladung geöffnet haben — auch ohne Rückmeldung.",
+		"empty": "Noch hat niemand die Einladung geöffnet.",
+		"remove": "Gast entfernen",
+		"removeConfirmTitle": "Gast wirklich entfernen?",
+		"removeConfirmText": "Möchtest du {name} wirklich von der Gästeliste entfernen? Die Rückmeldung, Pinnwand-Beiträge und alle zugehörigen Daten werden gelöscht.",
+		"removeConfirmAction": "Entfernen",
+		"removeHostForbidden": "Der Host kann nicht entfernt werden."
+	},
 	"polls": {
 		"title": "Abstimmungen",
 		"vote": "Abstimmen",

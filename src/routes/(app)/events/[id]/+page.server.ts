@@ -21,7 +21,7 @@ import {
 	listPollsForEvent,
 	toggleClosePoll
 } from '$lib/server/db/repositories/poll.repository';
-import { registerGuest, listGuestOverview } from '$lib/server/db/repositories/guest.repository';
+import { registerGuest, listGuestOverview, deleteGuest, findGuestById } from '$lib/server/db/repositories/guest.repository';
 import {
 	createAnnouncement,
 	listAnnouncements,
@@ -294,5 +294,26 @@ export const actions: Actions = {
 			sseHub.broadcast(event.id, 'potluck:update', item);
 		}
 		return { success: !!item };
+	},
+
+	removeGuest: async ({ request, params, locals }) => {
+		const user = requireUser(locals);
+		const event = findEventById(params.id!, user.id);
+		if (!event) throw error(404, 'Event nicht gefunden oder keine Berechtigung.');
+
+		const formData = await request.formData();
+		const guestId = String(formData.get('guestId') || '');
+		if (!guestId) return fail(400, { error: 'Kein Gast angegeben.' });
+
+		// Prevent removing the host
+		const guest = findGuestById(guestId, event.id);
+		if (!guest) return fail(404, { error: 'Gast nicht gefunden.' });
+		if (guest.isHost) return fail(403, { error: 'Der Host kann nicht entfernt werden.' });
+
+		const success = deleteGuest(guestId, event.id);
+		if (success) {
+			sseHub.broadcast(event.id, 'rsvp:update', { removed: guestId });
+		}
+		return { success };
 	}
 };

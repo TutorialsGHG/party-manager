@@ -26,7 +26,8 @@
 		Plus,
 		Tv,
 		Music,
-		ExternalLink
+		ExternalLink,
+		UserMinus
 	} from '@lucide/svelte';
 	import GalleryGrid from '$lib/features/gallery/GalleryGrid.svelte';
 	import type { MediaItem } from '$lib/features/gallery/types';
@@ -35,6 +36,8 @@
 
 	let copied = $state(false);
 	let showDeleteDialog = $state(false);
+	let guestToRemove = $state<{ id: string; name: string } | null>(null);
+	let showRemoveGuestDialog = $state(false);
 
 	let showWall = $state(true);
 	let showPolls = $state(true);
@@ -349,11 +352,11 @@
 	</Card>
 
 	<Card
-		title="Teilnehmende ({data.guestOverview.length})"
-		subtitle="Alle, die die Einladung geöffnet haben — auch ohne Rückmeldung."
+		title="{t('guests.title')} ({data.guestOverview.length})"
+		subtitle={t('guests.subtitle')}
 	>
 		{#if data.guestOverview.length === 0}
-			<p class="empty-hint">Noch hat niemand die Einladung geöffnet.</p>
+			<p class="empty-hint">{t('guests.empty')}</p>
 		{:else}
 			<div class="attendees-list">
 				{#each data.guestOverview as guest (guest.guestId)}
@@ -390,6 +393,17 @@
 								<span class="meta-chip" title="Hochgeladene Fotos und Videos">
 									⬆ {guest.uploadCount}
 								</span>
+							{/if}
+							{#if !guest.isHost}
+								<button
+									type="button"
+									class="host-delete-btn"
+									title={t('guests.remove')}
+									onclick={() => { guestToRemove = { id: guest.guestId, name: guest.name }; showRemoveGuestDialog = true; }}
+								>
+									<UserMinus size={16} />
+									<span class="sr-only">{t('guests.remove')}</span>
+								</button>
 							{/if}
 						</div>
 					</div>
@@ -709,6 +723,33 @@
 			<Button type="submit" variant="danger">Endgültig vernichten</Button>
 		</form>
 	{/snippet}
+</Dialog>
+
+<!-- Remove Guest Confirmation Dialog -->
+<Dialog
+	bind:open={showRemoveGuestDialog}
+	title={t('guests.removeConfirmTitle')}
+	onclose={() => { showRemoveGuestDialog = false; guestToRemove = null; }}
+>
+	{#if guestToRemove}
+		<p class="dialog-p">
+			{t('guests.removeConfirmText').replace('{name}', guestToRemove.name)}
+		</p>
+
+		{#snippet actions()}
+			<Button variant="secondary" onclick={() => { showRemoveGuestDialog = false; guestToRemove = null; }}>{t('app.cancel')}</Button>
+			<form action="?/removeGuest" method="POST" use:enhance={() => {
+				return async ({ update }) => {
+					showRemoveGuestDialog = false;
+					guestToRemove = null;
+					await update();
+				};
+			}}>
+				<input type="hidden" name="guestId" value={guestToRemove?.id ?? ''} />
+				<Button type="submit" variant="danger">{t('guests.removeConfirmAction')}</Button>
+			</form>
+		{/snippet}
+	{/if}
 </Dialog>
 
 <style>
