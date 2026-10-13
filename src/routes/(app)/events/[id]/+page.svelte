@@ -731,25 +731,23 @@
 	title={t('guests.removeConfirmTitle')}
 	onclose={() => { showRemoveGuestDialog = false; guestToRemove = null; }}
 >
-	{#if guestToRemove}
-		<p class="dialog-p">
-			{t('guests.removeConfirmText').replace('{name}', guestToRemove.name)}
-		</p>
+	<p class="dialog-p">
+		{t('guests.removeConfirmText').replace('{name}', guestToRemove?.name ?? '')}
+	</p>
 
-		{#snippet actions()}
-			<Button variant="secondary" onclick={() => { showRemoveGuestDialog = false; guestToRemove = null; }}>{t('app.cancel')}</Button>
-			<form action="?/removeGuest" method="POST" use:enhance={() => {
-				return async ({ update }) => {
-					showRemoveGuestDialog = false;
-					guestToRemove = null;
-					await update();
-				};
-			}}>
-				<input type="hidden" name="guestId" value={guestToRemove?.id ?? ''} />
-				<Button type="submit" variant="danger">{t('guests.removeConfirmAction')}</Button>
-			</form>
-		{/snippet}
-	{/if}
+	{#snippet actions()}
+		<Button variant="secondary" onclick={() => { showRemoveGuestDialog = false; guestToRemove = null; }}>{t('app.cancel')}</Button>
+		<form action="?/removeGuest" method="POST" use:enhance={() => {
+			return async ({ update }) => {
+				showRemoveGuestDialog = false;
+				guestToRemove = null;
+				await update();
+			};
+		}}>
+			<input type="hidden" name="guestId" value={guestToRemove?.id ?? ''} />
+			<Button type="submit" variant="danger">{t('guests.removeConfirmAction')}</Button>
+		</form>
+	{/snippet}
 </Dialog>
 
 <style>
